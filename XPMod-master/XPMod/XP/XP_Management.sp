@@ -50,45 +50,49 @@ void RenamePlayerWithLevelTags(int iClient, bool bRemoveTags = false)
 	char strClientBaseName[32];
 	GetClientBaseName(iClient, strClientBaseName, sizeof(strClientBaseName));
 
-	char strCustomTag[16];
-	GetCustomTagText(g_iClientCustomTag[iClient], strCustomTag, sizeof(strCustomTag));
-
-	// The string [30] is 5 chars with the space. Max name length is 31.
-	// So check to make sure the name is not longer than 31 - 5 = 26
-	// before continuing.
-	// This has changed with Prestige Points, now its 31 - 9 = 22
-	// A selected custom tag adds its own bracket ("[TAG]", 2 extra chars) on top of that.
-	int iTagBudget = (strCustomTag[0] != '\0') ? (strlen(strCustomTag) + 2) : 0;
-	if (strlen(strClientBaseName) + iTagBudget > 22)
-		return;
-
-
 	// Add the tag to the players name if needed
 	if (bRemoveTags == false)
 	{
-		// Get the client level into a string and combine it into the final name
+		// Build the "[<symbol><level or prestige count>]" bracket. Rank 1-10 presets are
+		// self-descriptive (e.g. "P3\xE2\x9C\xA8" already reads as "Prestige 3"), so no
+		// separate number gets appended there - that would just duplicate the digit already
+		// in the text. Ranks without a preset defined yet fall back to a plain number.
 		char strClientLevel[4];
-		char strBracket[24];
+		char strBracket[32];
 		if (g_iClientPrestigePoints[iClient] == 0)
 		{
 			IntToString(g_iClientLevel[iClient], strClientLevel, sizeof(strClientLevel));
-			Format(strBracket, sizeof(strBracket), "[%s]", strClientLevel);
+			Format(strBracket, sizeof(strBracket), "[%s%s]", NEW_PLAYER_SYMBOL, strClientLevel);
 		}
 		else
 		{
-			IntToString(g_iClientPrestigePoints[iClient], strClientLevel, sizeof(strClientLevel));
-			char strPrestigeSymbol[8];
+			char strPrestigeSymbol[16];
 			GetPrestigeSymbol(g_iClientPrestigePoints[iClient], strPrestigeSymbol, sizeof(strPrestigeSymbol));
-			Format(strBracket, sizeof(strBracket), "[%s%s]", strPrestigeSymbol, strClientLevel);
+			if (strPrestigeSymbol[0] != '\0')
+				Format(strBracket, sizeof(strBracket), "[%s]", strPrestigeSymbol);
+			else
+			{
+				IntToString(g_iClientPrestigePoints[iClient], strClientLevel, sizeof(strClientLevel));
+				Format(strBracket, sizeof(strBracket), "[%s]", strClientLevel);
+			}
 		}
 
 		// Append the custom tag as its own bracket, e.g. "[30][VIP]", if one is selected
+		char strCustomTag[16];
+		GetCustomTagText(g_iClientCustomTag[iClient], strCustomTag, sizeof(strCustomTag));
 		if (strCustomTag[0] != '\0')
 		{
 			char strTagBracket[20];
 			Format(strTagBracket, sizeof(strTagBracket), "[%s]", strCustomTag);
 			StrCat(strBracket, sizeof(strBracket), strTagBracket);
 		}
+
+		// Max name length is 31 bytes total ("<bracket> <basename>"). Check against the
+		// actual assembled bracket rather than an estimate, so a longer symbol never gets
+		// silently truncated mid-character (which would corrupt a multi-byte UTF-8 symbol).
+		// Skip tagging entirely rather than risk that - same graceful-degradation as before.
+		if (strlen(strBracket) + 1 + strlen(strClientBaseName) > 31)
+			return;
 
 		Format(strClientName, sizeof(strClientName), "%s %s", strBracket, strClientBaseName);
 	}

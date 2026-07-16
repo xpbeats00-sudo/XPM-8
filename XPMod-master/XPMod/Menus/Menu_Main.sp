@@ -666,20 +666,22 @@ Action CustomizeMenuDraw(int iClient)
 	\n▬▬▬▬▬▬▬▬▬▬▬\
 	\n \
 	\nPick a tag to show next\
-	\nto your name.\
+	\nto your name. Pick your\
+	\ncurrent tag again to remove it.\
 	\n▬▬▬▬▬▬▬▬▬▬▬\n",
 	strStartingNewLines);
 	SetMenuTitle(menu, "%s", text);
 	GetNewLinesAutomatic(text, strNewLines, 8);
 
-	// Up to 7 tags (options 1-7), option 8 clears the tag, option 9 is Back - same fixed
-	// 9-slot layout every other XPMod menu uses.
+	// Up to 8 tags (options 1-8), option 9 is Back - same fixed 9-slot layout every other
+	// XPMod menu uses. Admin-only tags (see CUSTOM_TAG_ADMIN_ONLY) are hidden entirely
+	// from non-admins, same treatment Prestige gets below level 30.
 	int iTagCount = sizeof(CUSTOM_TAGS);
-	for (int i = 0; i < 7; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		char strOptionName[10], strItemText[64];
 		Format(strOptionName, sizeof(strOptionName), "option%d", i + 1);
-		if (i < iTagCount)
+		if (i < iTagCount && (CUSTOM_TAG_ADMIN_ONLY[i] == false || GetClientAdminLevel(iClient) > 0))
 		{
 			if (g_iClientCustomTag[iClient] == i + 1)
 				Format(strItemText, sizeof(strItemText), "[%s] (current)", CUSTOM_TAGS[i]);
@@ -690,11 +692,6 @@ Action CustomizeMenuDraw(int iClient)
 		else
 			AddMenuItem(menu, strOptionName, "", ITEMDRAW_NOTEXT);
 	}
-
-	if (g_iClientCustomTag[iClient] == 0)
-		AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
-	else
-		AddMenuItem(menu, "option8", "Remove Tag\n ");
 
 	char strFinalOptionText[150];
 	Format(strFinalOptionText, sizeof(strFinalOptionText), "Back\
@@ -720,15 +717,11 @@ void CustomizeMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum
 		if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true || g_iClientLevel[iClient] < 30)
 			return;
 
-		if (itemNum >= 0 && itemNum < 7 && itemNum < sizeof(CUSTOM_TAGS))
+		if (itemNum >= 0 && itemNum < 8 && itemNum < sizeof(CUSTOM_TAGS) &&
+			(CUSTOM_TAG_ADMIN_ONLY[itemNum] == false || GetClientAdminLevel(iClient) > 0))
 		{
-			g_iClientCustomTag[iClient] = itemNum + 1;
-			RenamePlayerWithLevelTags(iClient);
-			CustomizeMenuDraw(iClient);
-		}
-		else if (itemNum == 7) //Remove Tag
-		{
-			g_iClientCustomTag[iClient] = 0;
+			// Picking your already-selected tag again clears it back to none.
+			g_iClientCustomTag[iClient] = (g_iClientCustomTag[iClient] == itemNum + 1) ? 0 : (itemNum + 1);
 			RenamePlayerWithLevelTags(iClient);
 			CustomizeMenuDraw(iClient);
 		}
