@@ -5,6 +5,7 @@
 #include "XPMod/GlobalVariables/Infected.sp"
 #include "XPMod/GlobalVariables/Models_Particles_Anims.sp"
 #include "XPMod/GlobalVariables/Offsets_Reload_SDKCalls.sp"
+#include "XPMod/GlobalVariables/Prestige_Icons.sp"
 #include "XPMod/GlobalVariables/Sounds.sp"
 #include "XPMod/GlobalVariables/Survivors.sp"
 #include "XPMod/GlobalVariables/Talent_Levels.sp"

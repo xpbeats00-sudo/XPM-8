@@ -536,10 +536,17 @@ void SaveUserDataInDatabase(int iClient)
 	if (XPSaveForHighLevelsEnabled || g_iClientXP[iClient] < LEVEL_30 * 2)
 	{
 		Format(strQueryPart, sizeof(strQueryPart), "\
-		xp = %s, ", 
+		xp = %s, ",
 		strClientXP);
 		StrCat(strQuery, sizeof(strQuery), strQueryPart);
 	}
+
+	// Prestige rank - was previously never saved here at all (only ever loaded), so any
+	// prestige earned was silently lost on the next reconnect.
+	Format(strQueryPart, sizeof(strQueryPart), "\
+		prestige_points = %i, ",
+		g_iClientPrestigePoints[iClient]);
+	StrCat(strQuery, sizeof(strQuery), strQueryPart);
 
 	// Classes
 	Format(strQueryPart, sizeof(strQueryPart), "\

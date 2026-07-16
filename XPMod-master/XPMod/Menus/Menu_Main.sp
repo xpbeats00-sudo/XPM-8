@@ -254,7 +254,11 @@ Action ExtrasMenuDraw(int iClient)
 	AddMenuItem(menu, "option4", "Get XPMod Addon");
 	AddMenuItem(menu, "option5", "XPMod Website");
 	AddMenuItem(menu, "option6", "Ban Me\n ");
-	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	// Prestige is only offered once a player has actually hit the level cap.
+	if (g_iClientLevel[iClient] >= 30)
+		AddMenuItem(menu, "option7", "Prestige");
+	else
+		AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
 	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
 
 	char strFinalOptionText[150];
@@ -543,10 +547,92 @@ void ExtrasMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
 			{
 				BanMeMenuDraw(iClient);
 			}
+			case 6: //Prestige
+			{
+				if (g_iClientLevel[iClient] >= 30)
+					PrestigeConfirmMenuDraw(iClient);
+				else
+					ExtrasMenuDraw(iClient);
+			}
 			case 8: //Back
 			{
 				TopMenuDraw(iClient);
 			}
+		}
+	}
+}
+
+Action PrestigeConfirmMenuDraw(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+
+	Menu menu = CreateMenu(PrestigeConfirmMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	\n		Prestige\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	\n \
+	\nResets your Level, XP, Talents,\
+	\nclass picks, and loadout back\
+	\nto the start.\
+	\n \
+	\nIn exchange you permanently\
+	\nkeep Prestige Rank %d,\
+	\nshown next to your name.\
+	\n \
+	\nThis cannot be undone.\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines, g_iClientPrestigePoints[iClient] + 1);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 8);
+
+	AddMenuItem(menu, "option1", "Yes, Prestige");
+	AddMenuItem(menu, "option2", "No, take me back\n ");
+	AddMenuItem(menu, "option3", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Cancel\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void PrestigeConfirmMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (itemNum == 0) //Yes, Prestige
+		{
+			if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true || g_iClientLevel[iClient] < 30)
+				return;
+
+			PrestigePlayer(iClient);
+		}
+		else //No / Cancel
+		{
+			ExtrasMenuDraw(iClient);
 		}
 	}
 }

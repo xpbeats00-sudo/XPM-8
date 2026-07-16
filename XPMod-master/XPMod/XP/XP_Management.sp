@@ -72,11 +72,7 @@ void RenamePlayerWithLevelTags(int iClient, bool bRemoveTags = false)
 		{
 			IntToString(g_iClientPrestigePoints[iClient], strClientLevel, sizeof(strClientLevel));
 			char strPrestigeSymbol[8];
-			int iTop10Pos = GetClientTop10Position(iClient);
-			if (iTop10Pos > 0)
-				GetTop10Symbol(iTop10Pos, strPrestigeSymbol, sizeof(strPrestigeSymbol));
-			else
-				strcopy(strPrestigeSymbol, sizeof(strPrestigeSymbol), "☆");
+			GetPrestigeSymbol(g_iClientPrestigePoints[iClient], strPrestigeSymbol, sizeof(strPrestigeSymbol));
 			Format(strClientName, sizeof(strClientName), "[%s%s] %s", strPrestigeSymbol, strClientLevel, strClientBaseName);
 		}
 	}
@@ -267,6 +263,33 @@ Action GiveXP(int iClient, int args)
 	CheckLevel(target);
 	
 	return Plugin_Handled;
+}
+
+// Prestiges a max-level player: wipes progression (level, XP, talents, class picks,
+// loadout - same full reset ResetAll already does elsewhere) but keeps and increments
+// their permanent Prestige rank instead of losing it. Gate calls to this at
+// g_iClientLevel[iClient] >= 30 (max level) - see ExtrasMenuDraw/PrestigeConfirmMenuDraw.
+void PrestigePlayer(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	int iNewPrestigeCount = g_iClientPrestigePoints[iClient] + 1;
+
+	ResetAll(iClient);
+	g_iClientPrestigePoints[iClient] = iNewPrestigeCount;
+
+	SaveUserData(iClient);
+
+	char strSymbol[8];
+	GetPrestigeSymbol(iNewPrestigeCount, strSymbol, sizeof(strSymbol));
+	PrintToChatAll("\x03[XPMod] \x05%N \x01has \x04PRESTIGED \x01to rank \x05%s%d\x01!", iClient, strSymbol, iNewPrestigeCount);
+	PrintHintText(iClient, "<-=-=-=-:[You have PRESTIGED! Rank %d]:-=-=-=->", iNewPrestigeCount);
+
+	// ResetAll (via ResetSurvivorTalents) already set g_bTalentsConfirmed false, so the
+	// player's displayed name keeps its pre-prestige tags until they reconfirm - the
+	// existing confirm flow (ConfirmationMessageMenuHandler) calls
+	// RenamePlayerWithLevelTags itself once they do, same as any other unconfirmed player.
 }
 
 //Resets XP, LVL, and Skillpoints, equipment and talents
