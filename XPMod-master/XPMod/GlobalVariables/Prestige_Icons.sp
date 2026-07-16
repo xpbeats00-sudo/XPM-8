@@ -10,17 +10,24 @@
 // these actually look like in-game, so it is NOT guaranteed to read as an escalating
 // bronze-to-diamond style progression. Reorder the entries below (or trim the list) to
 // match your intended rank progression once you have previewed them in-game.
+//
+// UPDATE: ranks 1-10 were switched from the original PUA codepoints (still used for
+// ranks 11-45 below) to plain "P<n>" text + an escalating emoji instead - guaranteed
+// readable everywhere regardless of whether the custom "tarty" font addon is loaded
+// client-side, at the cost of not being a custom-drawn icon. Same rendering caveat as
+// the Customize menu's emoji tags applies here too: standard Unicode, not guaranteed to
+// have a glyph in L4D2's own HUD font - please test live.
 char PRESTIGE_ICONS[][] = {
-	"",	// rank 1 - U+E010
-	"",	// rank 2 - U+E050
-	"",	// rank 3 - U+E070
-	"",	// rank 4 - U+E080
-	"",	// rank 5 - U+E090
-	"",	// rank 6 - U+E0A0
-	"",	// rank 7 - U+E0B0
-	"",	// rank 8 - U+E0C0
-	"",	// rank 9 - U+E0D0
-	"",	// rank 10 - U+E0E0
+	"P1⭐",	// rank 1
+	"P2🌟",	// rank 2
+	"P3✨",	// rank 3
+	"P4🔥",	// rank 4
+	"P5⚡",	// rank 5
+	"P6💥",	// rank 6
+	"P7💎",	// rank 7
+	"P8🏆",	// rank 8
+	"P9💀",	// rank 9
+	"P10👑",	// rank 10
 	"",	// rank 11 - U+E0F0
 	"",	// rank 12 - U+E100
 	"",	// rank 13 - U+E110
@@ -72,3 +79,7 @@ void GetPrestigeSymbol(int iPrestigeCount, char[] strSymbol, int maxlen)
 	int iIndex = (iPrestigeCount - 1) % sizeof(PRESTIGE_ICONS);
 	strcopy(strSymbol, maxlen, PRESTIGE_ICONS[iIndex]);
 }
+
+// Decorator shown for players who haven't prestiged yet (prestige count 0, "new" tier),
+// prepended to their level instead of a prestige count - see RenamePlayerWithLevelTags.
+char NEW_PLAYER_SYMBOL[] = "🔰";
