@@ -209,7 +209,9 @@ void GetLoggedInAndConfirmedStrings(int iClient, char[] strLoggedIn, int iLogged
 
 Action TimerLogXPMStatsToFile(Handle timer, int data)
 {
-	char strStoreBuffer[2000];
+	// Sized for a full 16-player (8v8) roster + spectators, ~3 lines per player;
+	// 2000 was tuned for 4v4 and silently truncated (dropping team sections) at 8v8.
+	char strStoreBuffer[6000];
 	strStoreBuffer = NULL_STRING;
 
 	CreateXPMStatistics(-1, strStoreBuffer, sizeof(strStoreBuffer));

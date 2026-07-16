@@ -7,10 +7,6 @@ void BindPress(int iClient, int iBindNumber)
 	if(RunClientChecks(iClient) == false)
 		return;
 
-	// TEMP DEBUG - remove once bind dispatch is confirmed working on 8v8
-	PrintToChat(iClient, "\x03[XPMod DEBUG] \x01Bind%d pressed. Team=%d ChosenSurvivor=%d InfectedChar=%d TalentsConfirmed=%d",
-		iBindNumber, g_iClientTeam[iClient], g_iChosenSurvivor[iClient], g_iInfectedCharacter[iClient], g_bTalentsConfirmed[iClient]);
-
 	if(g_bTalentsConfirmed[iClient] == false)
 	{
 		PrintToChat(iClient, "\x03[XPMod] \x04You must confirm your talents before using binds.");
@@ -59,8 +55,6 @@ void BindPress(int iClient, int iBindNumber)
 			case NICK:		iBindNumber == 1 ? Bind1Press_Nick(iClient) 	: Bind2Press_Nick(iClient);
 			case LOUIS:		iBindNumber == 1 ? Bind1Press_Louis(iClient) 	: Bind2Press_Louis(iClient);
 			case ZOEY:		iBindNumber == 1 ? Bind1Press_Zoey(iClient) 	: Bind2Press_Zoey(iClient);
-			// TEMP DEBUG - remove once bind dispatch is confirmed working on 8v8
-			default: PrintToChat(iClient, "\x03[XPMod DEBUG] \x04No survivor case matched ChosenSurvivor=%d - bind did nothing.", g_iChosenSurvivor[iClient]);
 		}
 	}
 	else if(g_iClientTeam[iClient] == TEAM_INFECTED)
@@ -73,14 +67,7 @@ void BindPress(int iClient, int iBindNumber)
 			case SPITTER:	iBindNumber == 1 ? Bind1Press_Spitter(iClient) 	: Bind2Press_Spitter(iClient);
 			case JOCKEY:	iBindNumber == 1 ? Bind1Press_Jockey(iClient) 	: Bind2Press_Jockey(iClient);
 			case CHARGER:	iBindNumber == 1 ? Bind1Press_Charger(iClient) 	: Bind2Press_Charger(iClient);
-			// TEMP DEBUG - remove once bind dispatch is confirmed working on 8v8
-			default: PrintToChat(iClient, "\x03[XPMod DEBUG] \x04No infected case matched InfectedChar=%d - bind did nothing.", g_iInfectedCharacter[iClient]);
 		}
-	}
-	else
-	{
-		// TEMP DEBUG - remove once bind dispatch is confirmed working on 8v8
-		PrintToChat(iClient, "\x03[XPMod DEBUG] \x04Team=%d matched neither Survivors nor Infected - bind did nothing.", g_iClientTeam[iClient]);
 	}
 }
 
