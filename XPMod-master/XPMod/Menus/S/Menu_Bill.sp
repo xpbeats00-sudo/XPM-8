@@ -1,0 +1,484 @@
+//Support (Bill) Menu////////////////////////////////////////////////////////////////
+
+//Bill Menu Draw
+Action SupportMenuDraw(int iClient) 
+{
+	char text[512];
+
+
+	
+	Menu menu = CreateMenu(SupportMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char strXP[32];
+	FormatXPDisplay(iClient, strXP, sizeof(strXP));
+	FormatEx(text, sizeof(text), "%sLevel %d	XP: %s\n=	=	=	=	=	=	=	=	=	=	=	=	=	=\n \n					Bill's Support Talents\n ", strStartingNewLines, g_iClientLevel[iClient], strXP);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 7+3);
+
+	FormatEx(text, sizeof(text), "	[Level %d]	Inspirational Leadership", g_iInspirationalLevel[iClient]);
+	AddMenuItem(menu, "option1", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Ghillie Tactics", g_iGhillieLevel[iClient]);
+	AddMenuItem(menu, "option2", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Will to Live", g_iWillLevel[iClient]);
+	AddMenuItem(menu, "option3", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Exorcism in a Barrel", g_iExorcismLevel[iClient]);
+	AddMenuItem(menu, "option4", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Die Hard (Bind 1)", g_iDiehardLevel[iClient]);
+	AddMenuItem(menu, "option5", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Promotional Benefits (Bind 2)          \n ", g_iPromotionalLevel[iClient]);
+	AddMenuItem(menu, "option6", text);
+
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\n \n=	=	=	=	=	=	=	=	=	=	=	=	=	=\
+		%s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Inspirational Leadership Draw
+Action InspirationalMenuDraw(int iClient) 
+{
+	char text[512];
+
+
+
+	Menu menu = CreateMenu(InspirationalMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s				Inspirational Leadership (Level %d)\
+		\n \
+		\n(Team) +10 bonus XP per level for teammates on SI kill\
+		\n(Team) Reduce screen shaking when taking damage by 25%%\
+		\n \
+		\nHold [CROUCH] to heal closest ally\
+		\n	- Heals %i HP every %i second\
+		\n	- Health Pool of %i HP shared with all Bills\
+		\n	- Maximum distance of 100 ft\
+		\n ",
+		strStartingNewLines,
+		g_iInspirationalLevel[iClient],
+		BILL_TEAM_HEAL_HP_AMOUNT,
+		BILL_TEAM_HEAL_FRAME_COUNTER_REQUIREMENT,
+		BILL_TEAM_HEAL_HP_POOL);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Ghillie Tactics
+Action GhillieMenuDraw(int iClient) 
+{
+	char text[512];
+
+
+
+	Menu menu = CreateMenu(GhillieMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s				Ghillie Tactics(Level %d):\
+		\n \
+		\n+13%%%% cloaking per level\
+		\n(Charge) +30 sprinting stamina per level\
+		\n \
+		\n \
+		\nSkill Uses:\
+		\n(Charge) sprinting stamina builds over time\
+		\nHold [WALK] to activate\
+		\nWorks while incapacitated\
+		\n ",
+		strStartingNewLines,
+		g_iGhillieLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Will to Live Draw
+Action WillMenuDraw(int iClient) 
+{
+	char text[512];
+
+
+
+	Menu menu = CreateMenu(WillMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s					Will to Live(Level %d):\
+		\n \
+		\n+5 max health per level\
+		\n+50 incap health per level\
+		\n(Team) Allow crawling\
+		\n(Stacks) (Team) +5 crawl speed per level\
+		\n \
+		\n \
+		\nSkill Uses:\
+		\nCrawl speed (Stacks) with itself\
+		\nUnlimited stacks\
+		\n ",
+		strStartingNewLines,
+		g_iWillLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+//Exorcism in a Barrel Draw
+Action ExorcismMenuDraw(int iClient) 
+{
+	char text[512];
+	
+
+
+	Menu menu = CreateMenu(ExorcismMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s  Exorcism in a Barrel(Level %d):\
+		\n \
+		\n+6%%%% Assault Rifle damage per level\
+		\n+9%%%% Reload speed per level\
+		\n ",
+		strStartingNewLines,
+		g_iExorcismLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Die Hard Draw
+Action DiehardMenuDraw(int iClient) 
+{
+	char text[512];
+	
+
+
+	Menu menu = CreateMenu(DiehardMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s					Die Hard(Level %d):\
+		\n \
+		\n+15 Max HP/Lvl\
+		\nRegen 9 HP/Lvl When Ally Incaps\
+		\n+5 HP/Lvl to heal pool when ally incaps\
+		\n \
+		\nPress [WALK] + [USE]: Taunt\
+		\n	Bile Yourself for Aggro\
+		\n	Bill Cloak Disabled\
+		\n	Team Gains Temp Cloak\
+		\n	Gain 30%% Dmg Reduction\
+		\n	4 Minute Global Cooldown\
+		\n \
+		\nBind 1: Improvised Explosives (3 Uses):\
+		\n \
+		\nDrop +1 Pipebomb Every Other Level\
+		\n ",
+		strStartingNewLines,
+		g_iDiehardLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Promotional Benefits Draw
+Action PromotionalMenuDraw(int iClient) 
+{
+	char text[512];
+	
+
+
+	Menu menu = CreateMenu(PromotionalMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s		Promotional Benefits(Level %d):\
+		\n \
+		\n+4%%%% reload speed & cloaking per level\
+		\n+20 rifle clip size per level\
+		\n+20%%%% M60 damage per level\
+		\nAutomatic laser sight\
+		\nHide glow from SI\
+		\n \
+		\n \
+		\n				Bind 2: First Blood\
+		\n			+1 use every other level\
+		\n \
+		\nSpawn M60\
+		\n ",
+		strStartingNewLines,
+		g_iPromotionalLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Handlers//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Bill Menu Handler
+void SupportMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Inspirational
+			{
+				InspirationalMenuDraw(iClient);
+			}
+			case 1: //Ghillie Tactics
+			{
+				GhillieMenuDraw(iClient);
+			}
+			case 2: //Will to Live
+			{
+				WillMenuDraw(iClient);
+			}
+			case 3: //Exorcism in a Barrel
+			{
+				ExorcismMenuDraw(iClient);
+			}
+			case 4: //Die Hard
+			{
+				DiehardMenuDraw(iClient);
+			}
+			case 5: //Promotional Benefits
+			{
+				PromotionalMenuDraw(iClient);
+			}
+			case 8: //Back
+			{
+				TopSurvivorMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+
+//Inspirational Handler
+void InspirationalMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				SupportMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Ghillie Tactics Menu Handler
+void GhillieMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+            case 0: //Back
+            {
+				SupportMenuDraw(iClient);
+            }
+        }
+    }
+}
+
+
+//Will to Live Handler
+void WillMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				SupportMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+
+//Exorcism in a Barrel Handler
+void ExorcismMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				SupportMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Die Hard Handler
+void DiehardMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				SupportMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Promotional Benefit Handler
+void PromotionalMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				SupportMenuDraw(iClient);
+			}
+		}
+	}
+}

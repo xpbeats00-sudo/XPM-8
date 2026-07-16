@@ -1,0 +1,5 @@
+"AddonList"
+{
+	"xpmod_server_addon.vpk"		"1"
+	"NPack_HUD.vpk"		"1"
+}

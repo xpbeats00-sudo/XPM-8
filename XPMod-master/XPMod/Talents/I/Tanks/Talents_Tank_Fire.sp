@@ -1,0 +1,279 @@
+void LoadFireTankTalents(int iClient)
+{
+	if (RunClientChecks(iClient) == false || 
+		g_iClientTeam[iClient] != TEAM_INFECTED ||
+		g_iTankChosen[iClient] != TANK_NOT_CHOSEN ||
+		GetEntProp(iClient, Prop_Send, "m_zombieClass") != TANK)
+		return;
+	
+	if(IsPlayerAlive(iClient) == false)
+	{
+		if (IsFakeClient(iClient) == false)
+			PrintToChat(iClient, "\x04You cannot choose tank talents after you have died");
+		return;
+	}
+
+	
+	g_iTankChosen[iClient] = TANK_FIRE;
+	g_fTankHealthPercentage[iClient] =  1.0;
+	g_iFireTankPunchHitCounter[iClient] = 0;
+	g_bFireTankAttackCharged[iClient] = true;
+	g_iPID_TankChargedFire[iClient] = CreateParticle("fire_small_01", 0.0, iClient, ATTACH_DEBRIS);
+	
+	// Set On Fire
+	IgniteEntity(iClient, 10000.0, false);
+	CreateTimer(10000.0, Timer_ReigniteFireTank, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	SetTanksTalentHealth(iClient, TANK_HEALTH_FIRE);
+
+	// Stop Kiting (Bullet hits slowing tank down)
+	SetConVarInt(FindConVar("z_tank_damage_slow_min_range"), 0);
+	SetConVarInt(FindConVar("z_tank_damage_slow_max_range"), 0);
+
+	// Set Movement Speed
+	SetClientSpeed(iClient);
+
+	CreateTimer(1.0, Timer_FireTankHPDrain, iClient, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(FIRE_TANK_CI_CONVERSION_INTERVAL, Timer_FireTankCIConversion, iClient, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+
+	// Change Tank's Skin Color
+	SetClientRenderColor(iClient, 255, 200, 30, 255, RENDER_MODE_NORMAL);
+	// Make the tank have a colored outline glow
+	SetClientGlow(iClient, 250, 50, 20, GLOWTYPE_ONVISIBLE);
+	//Ellis firestorm 210, 88, 30
+	
+	if (IsFakeClient(iClient) == false)
+		PrintHintText(iClient, "You have become the Fire Tank");
+}
+
+void ResetAllTankVariables_Fire(int iClient)
+{
+	g_iFireDamageCounter[iClient] = 0;
+	g_bFireTankAttackCharged[iClient] = false;
+	g_iFireTankPunchHitCounter[iClient] = 0;
+	g_fFireTankExtraSpeed[iClient] = 0.0;
+	g_bFireTankDashActive[iClient] = false;
+	g_bFireTankDashCoolingDown[iClient] = false;
+
+	DeleteParticleEntity(g_iPID_TankChargedFire[iClient]);
+}
+
+void SetClientSpeedTankFire(int iClient, float &fSpeed)
+{
+	if (g_iTankChosen[iClient] != TANK_FIRE)
+		return;
+
+	if (g_bFireTankDashActive[iClient] == true)
+	{
+		fSpeed = FIRE_TANK_DASH_MOVEMENT_SPEED;
+		return;
+	}
+
+	fSpeed += (TANK_FIRE_BASE_SPEED + g_fFireTankExtraSpeed[iClient]);
+}
+
+void EventsHurt_VictimTank_Fire(Handle hEvent, int iAttacker, int iVictimTank)
+{
+	SuppressNeverUsedWarning(hEvent, iAttacker);
+
+	int iDmgHealth = GetEventInt(hEvent,"dmg_health");
+	int iDmgType = GetEventInt(hEvent, "type");
+
+	int iCurrentHealth = GetPlayerHealth(iVictimTank);
+	float fCurrentTankHealthPercentage;
+
+	//Prevent Fire Damage
+	if(iDmgType == DAMAGETYPE_FIRE1 || iDmgType == DAMAGETYPE_FIRE2 || iDmgType == DAMAGETYPE_IGNITED_ENTITY)
+		SetPlayerHealth(iVictimTank, -1, iCurrentHealth + iDmgHealth);
+	
+	fCurrentTankHealthPercentage = float(iCurrentHealth + iDmgHealth) / (TANK_HEALTH_FIRE * g_fTankStartingHealthMultiplier[iVictimTank]);
+	
+	//Check to see if the difference in stored health and current health percentage is significant
+	if(g_fTankHealthPercentage[iVictimTank] - fCurrentTankHealthPercentage >= 0.01)
+	{
+		//Change to the speed to match health percentage and level
+		g_fTankHealthPercentage[iVictimTank] = fCurrentTankHealthPercentage;
+		g_fFireTankExtraSpeed[iVictimTank] = TANK_FIRE_EXTRA_SPEED_MAX * (1.0 - fCurrentTankHealthPercentage);
+		SetClientSpeed(iVictimTank);
+		
+		//Change the actual color of the tank to reflect his health
+		//Go from Orange to Red by lowering the green value
+		int iGreen = 20 + RoundToNearest(180 * fCurrentTankHealthPercentage);
+		
+		SetEntityRenderMode(iVictimTank, RenderMode:0);
+		SetEntityRenderColor(iVictimTank, 255, iGreen, 0, 255);
+	}
+}
+
+void EventsHurt_AttackerTank_Fire(Handle hEvent, int iAttackerTank, int iVictim)
+{	
+	char weapon[20];
+	GetEventString(hEvent,"weapon", weapon, 20);
+
+	//Lay down a molotov explosion if player is hit by fire tank's rock
+	if(StrEqual(weapon,"tank_rock") == true)
+	{
+		float xyzLocation[3];
+		GetClientAbsOrigin(iVictim, xyzLocation);
+		MolotovExplode(xyzLocation);
+	}
+	
+	if(StrEqual(weapon,"tank_claw") == true)
+	{
+		// Only count punches on non-incapped survivors for fire punch activation
+		bool bCountPunch = (g_iClientTeam[iVictim] == TEAM_SURVIVORS && IsIncap(iVictim) == false);
+
+		if(bCountPunch)
+			g_iFireTankPunchHitCounter[iAttackerTank]++;
+
+		//Fire punch occurs on every Nth successful survivor hit, starting with the first
+		if(g_bFireTankAttackCharged[iAttackerTank] == true)
+		{
+			CreateFireTankExplosion(iVictim);
+
+			g_bFireTankAttackCharged[iAttackerTank] = false;
+			DeleteParticleEntity(g_iPID_TankChargedFire[iAttackerTank]);
+			SetFireToPlayer(iVictim, iAttackerTank, 5.0);
+		}
+		else if(bCountPunch && g_iFireTankPunchHitCounter[iAttackerTank] >= FIRE_TANK_FIRE_PUNCH_EVERY_N_HITS)
+		{
+			// Recharge fire punch after N hits
+			g_iFireTankPunchHitCounter[iAttackerTank] = 0;
+			g_bFireTankAttackCharged[iAttackerTank] = true;
+			g_iPID_TankChargedFire[iAttackerTank] = CreateParticle("fire_small_01", 0.0, iAttackerTank, ATTACH_DEBRIS);
+
+			if (IsFakeClient(iAttackerTank) == false)
+				PrintHintText(iAttackerTank, "Fire Punch Recharged!");
+		}
+		else if(GetRandomInt(1, 5) == 1)
+		{
+			SetFireToPlayer(iVictim, iAttackerTank, 5.0);
+		}
+	}
+}
+
+
+void EventsDeath_VictimTank_Fire(Handle hEvent, int iAttacker, int iVictimTank)
+{
+	if (RunClientChecks(iVictimTank) == false)
+		return;
+
+	SuppressNeverUsedWarning(hEvent, iAttacker);
+
+	// Explode the tank and set a fire
+	CreateFireTankExplosion(iVictimTank);
+}
+
+void SetFireToPlayer(int iVictim, int iAttacker, float fTime)
+{
+	if (iVictim < 1 || IsClientInGame(iVictim) == false)
+		return;
+	
+	g_iFireDamageCounter[iVictim] = RoundToNearest(fTime * 2);
+	IgniteEntity(iVictim, fTime, false);
+	WriteParticle(iVictim, "fire_small_01", 40.0, fTime);
+	
+	Handle hEntityPack = CreateDataPack();
+	WritePackCell(hEntityPack, iVictim);
+	WritePackCell(hEntityPack, iAttacker);
+	CreateTimer(0.5, Timer_DealFireDamage, hEntityPack, TIMER_REPEAT);
+}
+
+void CreateFireRockTrailEffect(int iRockEntity)
+{
+	float xyzRockPosition[3];
+	GetEntPropVector(iRockEntity, Prop_Send, "m_vecOrigin", xyzRockPosition);
+	char vecString[32];
+	Format(vecString, sizeof(vecString), "%f %f %f", xyzRockPosition[0], xyzRockPosition[1], xyzRockPosition[2]);
+
+	// Make Fire Entity
+	int iTankRockTrailParticle = AttachParticle(iRockEntity, "aircraft_destroy_fastFireTrail", 20.0, 0.0);
+	// Find the tank rock entity in the list that will be used store the trail particle entity
+	int iTankRockIndex = FindIndexInArrayListUsingValue(g_listTankRockEntities, iRockEntity, TANK_ROCK_ENTITY_ID);
+	// Store it for stopping and destroying it later
+	g_listTankRockEntities.Set(iTankRockIndex, iTankRockTrailParticle, TANK_ROCK_PARTICLE_TRAIL);
+	
+}
+
+void DestroyFireTankRock(int iRockEntity)
+{
+	float xyzRockPosition[3];
+	GetEntPropVector(iRockEntity, Prop_Send, "m_vecOrigin", xyzRockPosition);
+
+	MolotovExplode(xyzRockPosition);
+}
+
+void OnPlayerRunCmd_Tank_Fire(int iClient, int iButtons)
+{
+	if (g_iTankChosen[iClient] != TANK_FIRE)
+		return;
+
+	// Fire Tank Dash: IN_SPEED + movement direction
+	if (g_bFireTankDashCoolingDown[iClient] == false &&
+		g_bFireTankDashActive[iClient] == false &&
+		iButtons & IN_SPEED &&
+		(iButtons & IN_FORWARD || iButtons & IN_BACK || iButtons & IN_MOVELEFT || iButtons & IN_MOVERIGHT))
+	{
+		FireTankDash(iClient);
+	}
+}
+
+void CreateFireTankExplosion(int iClient)
+{
+	float xyzLocation[3];
+	GetClientAbsOrigin(iClient, xyzLocation);
+	xyzLocation[2] += 30.0;
+	PropaneExplode(xyzLocation);
+	MolotovExplode(xyzLocation);
+}
+
+void ConvertCINearFireTank(int iClient)
+{
+	float xyzEntityLocation[3];
+	int iAllVaiableEntities[MAXENTITIES];
+	char strClasses[1][32] = {"infected"};
+	for (int iIndex = 0; iIndex < GetAllEntitiesInRadiusOfEntity(iClient, FIRE_TANK_CI_CONVERSION_RADIUS, iAllVaiableEntities, strClasses, sizeof(strClasses)); iIndex++)
+	{
+		if (IsCommonInfectedAlive(iAllVaiableEntities[iIndex]) == false)
+			continue;
+
+		// Skip if already an uncommon infected (already CEDA or other type)
+		if (IsEntityUncommonInfected(iAllVaiableEntities[iIndex]) == true)
+			continue;
+
+		// Get the location of the CI
+		GetEntPropVector(iAllVaiableEntities[iIndex], Prop_Send, "m_vecOrigin", xyzEntityLocation);
+
+		// Kill the current CI entity
+		SetEntProp(iAllVaiableEntities[iIndex], Prop_Data, "m_iHealth", 0);
+
+		// Spawn a CEDA uncommon infected in its place (fire immune)
+		SpawnCIAroundLocation(xyzEntityLocation, 1, UNCOMMON_CI_CEDA, CI_SMALL_OR_BIG_NONE, ENHANCED_CI_TYPE_NONE, false);
+	}
+}
+
+void FireTankDash(int iClient)
+{
+	CreateFireTankExplosion(iClient);
+
+	// Pay HP cost if above threshold
+	int iCurrentHealth = GetPlayerHealth(iClient);
+	if (iCurrentHealth > FIRE_TANK_DASH_HP_COST)
+		SetPlayerHealth(iClient, -1, iCurrentHealth - FIRE_TANK_DASH_HP_COST);
+
+	// Activate dash
+	g_bFireTankDashActive[iClient] = true;
+	SetClientSpeed(iClient);
+	CreateTimer(FIRE_TANK_DASH_DURATION, Timer_FireTankDashEnd, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	// Start cooldown
+	g_bFireTankDashCoolingDown[iClient] = true;
+	CreateTimer(FIRE_TANK_DASH_COOLDOWN, Timer_FireTankDashCooldownEnd, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	// Effects
+	AttachParticle(iClient, "charger_motion_blur", 5.4, 0.0);
+	EmitSoundToClient(iClient, SOUND_LOUIS_TELEPORT_USE);
+
+	if (IsFakeClient(iClient) == false)
+		PrintHintText(iClient, "Fire Dash!");
+}

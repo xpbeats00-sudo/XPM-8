@@ -1,0 +1,498 @@
+// Calculate player movement speed given all values
+void SetClientSpeed(int iClient)
+{
+	if (RunClientChecks(iClient) == false ||
+		IsPlayerAlive(iClient) == false ||
+		g_bGameFrozen == true ||
+		g_bFrozenByTank[iClient] == true)
+		return;
+
+	float fSpeed = 1.0;
+
+	// Interrupt speed abilities
+	if (SetClientSpeedOverrides(iClient, fSpeed))
+	{
+		SetEntDataFloat(iClient, FindSendPropInfo("CTerrorPlayer","m_flLaggedMovementValue"), fSpeed, true);
+		// if (IsFakeClient(iClient) == false)
+		// 	PrintToChat(iClient, "SetClientSpeedOverride: %N: %f", iClient, fSpeed);
+		// PrintToChatAll("SetClientSpeedOverride: %N: %f", iClient, fSpeed);
+		return;
+	}
+	
+	// Survivors
+	if (g_iClientTeam[iClient] == TEAM_SURVIVORS)
+		{
+			SetClientSpeedBill(iClient, fSpeed);
+			SetClientSpeedRochelle(iClient, fSpeed);
+			SetClientSpeedCoach(iClient, fSpeed);
+			SetClientSpeedEllis(iClient, fSpeed);
+			SetClientSpeedNick(iClient, fSpeed);
+			SetClientSpeedLouis(iClient, fSpeed);
+			SetClientSpeedZoey(iClient, fSpeed);
+		}
+	// Infected
+	if (g_iClientTeam[iClient] == TEAM_INFECTED)
+	{
+		SetClientSpeedSmoker(iClient, fSpeed);
+		SetClientSpeedBoomer(iClient, fSpeed);
+		SetClientSpeedHunter(iClient, fSpeed);
+		SetClientSpeedSpitter(iClient, fSpeed);
+		SetClientSpeedJockey(iClient, fSpeed);
+		SetClientSpeedCharger(iClient, fSpeed);
+		SetClientSpeedTank(iClient, fSpeed);
+	}
+
+	// Give sub max level players more speed and scale down as they level
+	SetClientSpeedBotsAndNewPlayers(iClient, fSpeed);
+
+	SetEntDataFloat(iClient, FindSendPropInfo("CTerrorPlayer","m_flLaggedMovementValue"), fSpeed, true);
+	// if (IsFakeClient(iClient) == false)
+	// 	PrintToChat(iClient, "SetClientSpeed: %N: %f", iClient, fSpeed);
+	// PrintToChatAll("SetClientSpeed: %N: %f", iClient, fSpeed);
+}
+
+void SetClientSpeedForAllSurvivors()
+{
+	for (int iClient=1; iClient <= MaxClients; iClient++)
+		if (g_iClientTeam[iClient] == TEAM_SURVIVORS)
+			SetClientSpeed(iClient);
+}
+
+// Action TimerResetClientSpeed(Handle timer, int iClient)
+// {
+// 	SetClientSpeed(iClient);
+// 	return Plugin_Stop;
+// }
+
+// Survivors =======================================================================================================================
+void SetClientSpeedBill(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iClientTeam[iClient] != TEAM_SURVIVORS ||
+		g_iChosenSurvivor[iClient] != BILL)
+		return;
+
+	// Ghillie Suit Sprinting
+	if (g_bBillSprinting[iClient])
+		fSpeed += 1.0;
+
+	//PrintToChat(iClient, "SetClientSpeedBill: %f", fSpeed);
+}
+
+void SetClientSpeedRochelle(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iChosenSurvivor[iClient] != ROCHELLE)
+		return;
+	
+	// Passive speed boosts
+	fSpeed += ((g_iHunterLevel[iClient] * 0.02) + (g_iSniperLevel[iClient] * 0.02) + (g_iShadowLevel[iClient] * 0.02));
+
+	// Silent Assassin
+	if (g_bUsingShadowNinja[iClient])
+		fSpeed += (g_iShadowLevel[iClient] * 0.06);
+
+	// PrintToChat(iClient, "SetClientSpeedRochelle: %f", fSpeed);
+}
+
+void SetClientSpeedCoach(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iChosenSurvivor[iClient] != COACH)
+		return;
+
+	// Bull Rush Dash speed
+	if (g_bCoachDashActive[iClient] == true)
+	{
+		fSpeed = COACH_DASH_MOVEMENT_SPEED;
+		return;
+	}
+
+	// Bull Rush CI Kill boost
+	if (g_bCoachInCISpeed[iClient])
+		fSpeed += (g_iBullLevel[iClient] * 0.05);
+
+	// Homerun SI Kill boost
+	if (g_bCoachInSISpeed[iClient])
+		fSpeed += (g_iHomerunLevel[iClient] * 0.05);
+
+	// Bull Rush Rage boost
+	if (g_bCoachRageIsActive[iClient])
+		fSpeed += (g_iBullLevel[iClient] * 0.05);
+	else if (g_bCoachRageIsInCooldown[iClient])
+		fSpeed -= (g_iBullLevel[iClient] * 0.03);
+
+	// Chainsaw Massacre kill speed boost
+	if (g_bCoachChainsawMassacreActive[iClient] && g_iCoachChainsawKillCount[iClient] > 0)
+		fSpeed += (g_iCoachChainsawKillCount[iClient] * COACH_CHAINSAW_SPEED_PER_KILL);
+
+	//PrintToChat(iClient, "SetClientSpeedCoach: %f", fSpeed);
+}
+
+void SetClientSpeedEllis(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iChosenSurvivor[iClient] != ELLIS)
+		return;
+
+	// Overconfidence speed boost
+	if (g_bEllisOverSpeedIncreased[iClient])
+		fSpeed += (g_iOverLevel[iClient] * 0.01);
+
+	// Bring The Pain SI Kill counter speed boost
+	if (g_iEllisSpeedBoostCounter[iClient] > 0)
+		fSpeed += (g_iEllisSpeedBoostCounter[iClient] * 0.01);
+	
+	// Jammin To The Music Tank Count speed boost
+	if (g_iTankCounter > 0)
+		fSpeed += (g_iTankCounter * g_iJamminLevel[iClient] * 0.01);
+	
+	//PrintToChat(iClient, "SetClientSpeedEllis: %f, g_iTankCounter: %i", fSpeed, g_iTankCounter);
+}
+
+void SetClientSpeedNick(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iChosenSurvivor[iClient] != NICK)
+		return;
+
+	// Magnum Stampede
+	if (g_iMagnumLevel[iClient] > 0)
+		fSpeed += (g_iMagnumLevel[iClient] * 0.03);
+
+	// Desperate Measures Incap movement speed boost
+	if (g_iNickDesperateMeasuresStack > 0)
+	{
+		fSpeed += g_iNickDesperateMeasuresStack >= 3 ? 
+			(3 * (g_iDesperateLevel[iClient] * 0.01)) : 
+			(g_iNickDesperateMeasuresStack * (g_iDesperateLevel[iClient] * 0.01));
+	}
+	
+	//PrintToChat(iClient, "SetClientSpeedNick: %f", fSpeed);
+}
+
+void SetClientSpeedLouis(int iClient, float &fSpeed)
+{
+	// Warez Station boost
+	fSpeed += g_fWarezStationSpeedBoost[iClient];
+
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iChosenSurvivor[iClient] != LOUIS)
+		return;
+	
+	// Make sure Louis is not using his teleporter
+	if (g_bLouisTeleportActive[iClient] == true)
+	{
+		fSpeed = LOUIS_TELEPORT_MOVEMENT_SPEED;
+		return;
+	}
+
+	// Louis Hax the server speed increase
+	if (g_bHackTheServerEnabled == true)
+	{
+		fSpeed += LOUIS_HAK_TEH_SERVER_LOUIS_SPEED_MULTIPLIER;
+		return;
+	}
+		
+
+	// Teleport penalty
+	if (g_iLouisTeleportMovementPenaltyStacks[iClient] > 0)
+		fSpeed -= (g_iLouisTeleportMovementPenaltyStacks[iClient] * LOUIS_TELEPORT_MOVEMENT_PENALTY_AMOUNT);
+
+	// CI Kill speed
+	if (g_iLouisCIHeadshotCounter[iClient] > 0)
+		fSpeed += (g_iLouisCIHeadshotCounter[iClient] * 0.01);
+
+	// SI Kill speed
+	if (g_iLouisSIHeadshotCounter[iClient] > 0)
+		fSpeed += (g_iLouisSIHeadshotCounter[iClient] * 0.05);
+
+	// Pills Used Stack speed
+	if (g_iPillsUsedStack[iClient] > 0)
+		fSpeed += (g_iPillsUsedStack[iClient] * g_iLouisTalent6Level[iClient] * 0.02);
+
+	// Cap Louis's speed
+	if (fSpeed > (g_bLouisLaserModeActivated[iClient] ? LOUIS_SPEED_MAX_LASER : LOUIS_SPEED_MAX_NOLASER))
+		fSpeed = (g_bLouisLaserModeActivated[iClient] ? LOUIS_SPEED_MAX_LASER : LOUIS_SPEED_MAX_NOLASER);
+	
+		// PrintToChat(iClient, "SetClientSpeedLouis: %f", fSpeed);
+}
+
+void SetClientSpeedZoey(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iChosenSurvivor[iClient] != ZOEY)
+		return;
+
+	if (g_iZoeyTalent3Level[iClient] > 0)
+		fSpeed += ZOEY_SURVIVORS_WILL_MOVE_SPEED_BONUS;
+
+	if (g_iZoeyTalent1Level[iClient] > 0 &&
+		IsZoeyHoldingHealingItem(iClient))
+		fSpeed += ZOEY_RESILIENT_RESUSCITATION_MOVE_SPEED_BONUS;
+
+	if (g_iZoeyTalent6Level[iClient] > 0 && g_iZoeyInstantInterventionDownedCount > 0)
+		fSpeed += (float(g_iZoeyInstantInterventionDownedCount) * ZOEY_INSTANT_INTERVENTION_MOVE_SPEED_PER_DOWNED);
+}
+
+
+void SetClientSpeedBotsAndNewPlayers(int iClient, float &fSpeed)
+{
+	if (g_iClientTeam[iClient] != TEAM_SURVIVORS || 
+		g_iClientLevel[iClient] == 30)
+		return;
+
+	if (IsFakeClient(iClient) == true)
+	{
+		fSpeed += (MOVEMENT_SPEED_BOT);
+		return;
+	}
+	
+	// New Players
+	fSpeed += ( MOVEMENT_SPEED_NEW_PLAYER_MAX * ( 1.0 - (float(g_iClientLevel[iClient]) / 30.0) ) );
+	
+	// PrintToChatAll("%N: SetClientSpeedBotsAndNewPlayers: %f", iClient, fSpeed);
+}
+
+
+// Infected =======================================================================================================================
+void SetClientSpeedSmoker(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iInfectedCharacter[iClient] != SMOKER ||
+		(g_iClientInfectedClass1[iClient] != SMOKER &&
+		g_iClientInfectedClass2[iClient] != SMOKER &&
+		g_iClientInfectedClass3[iClient] != SMOKER))
+		return;
+
+	if(g_iSmokerTalent3Level[iClient] > 0)
+		fSpeed += (g_iSmokerTalent3Level[iClient] * 0.05);
+
+	//PrintToChat(iClient, "SetClientSpeedSmoker: %f", fSpeed);
+}
+
+void SetClientSpeedBoomer(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iInfectedCharacter[iClient] != BOOMER ||
+		(g_iClientInfectedClass1[iClient] != BOOMER &&
+		g_iClientInfectedClass2[iClient] != BOOMER &&
+		g_iClientInfectedClass3[iClient] != BOOMER))
+		return;
+	
+	// Bind 1 Hot Meal speed
+	if (g_bIsServingHotMeal[iClient])
+		fSpeed += (g_iAcidicLevel[iClient] * 0.1);
+	// Vomited on 3 survivors and got super speed
+	else if(g_bIsSuperSpeedBoomer[iClient])
+		fSpeed = 3.0;
+	// Rapid Regurgitation allow Boomer speed while vomiting
+	else if(g_bIsBoomerVomiting[iClient] && g_iRapidLevel[iClient] > 0)
+	 	fSpeed = (g_iRapidLevel[iClient] * 0.1);
+
+	//PrintToChat(iClient, "SetClientSpeedBoomer: %f", fSpeed);
+}
+
+void SetClientSpeedHunter(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iInfectedCharacter[iClient] != HUNTER ||
+		(g_iClientInfectedClass1[iClient] != HUNTER &&
+		g_iClientInfectedClass2[iClient] != HUNTER &&
+		g_iClientInfectedClass3[iClient] != HUNTER))
+		return;
+
+	if (g_iPredatorialLevel[iClient] > 0)
+		fSpeed += (g_iPredatorialLevel[iClient] * 0.05);
+
+	if (g_iBloodLustStage[iClient] > 0)
+		fSpeed += (g_iBloodLustStage[iClient] * BLOOD_LUST_SPEED_BOOST_PER_STAGE);
+	
+	// PrintToChat(iClient, "SetClientSpeedHunter: %f", fSpeed);
+}
+
+void SetClientSpeedSpitter(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iInfectedCharacter[iClient] != SPITTER ||
+		(g_iClientInfectedClass1[iClient] != SPITTER &&
+		g_iClientInfectedClass2[iClient] != SPITTER &&
+		g_iClientInfectedClass3[iClient] != SPITTER))
+		return;
+
+	if (g_bIsStealthSpitter[iClient] == true)
+		fSpeed += 1.0;
+	
+	//PrintToChat(iClient, "SetClientSpeedSpitter: %f", fSpeed);
+}
+
+void SetClientSpeedJockey(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iInfectedCharacter[iClient] != JOCKEY ||
+		(g_iClientInfectedClass1[iClient] != JOCKEY &&
+		g_iClientInfectedClass2[iClient] != JOCKEY &&
+		g_iClientInfectedClass3[iClient] != JOCKEY))
+		return;
+
+	// Tweakers Twitch dash speed (on foot only, riding boosts victim's ride speed)
+	if (g_bJockeyTwitchActive[iClient] == true)
+	{
+		fSpeed = JOCKEY_TWITCH_MOVEMENT_SPEED;
+		return;
+	}
+
+	if (g_iUnfairLevel[iClient] > 0)
+		fSpeed += (g_iUnfairLevel[iClient] * 0.07);
+
+	if (g_bHasSuperJockeySpeed[iClient] == true)
+		fSpeed += (g_iUnfairLevel[iClient] * 0.03);
+
+	// PrintToChat(iClient, "SetClientSpeedJockey: %f", fSpeed);
+}
+
+void SetClientSpeedCharger(int iClient, float &fSpeed)
+{
+	if (g_bTalentsConfirmed[iClient] == false ||
+		g_iInfectedCharacter[iClient] != CHARGER ||
+		(g_iClientInfectedClass1[iClient] != CHARGER &&
+		g_iClientInfectedClass2[iClient] != CHARGER &&
+		g_iClientInfectedClass3[iClient] != CHARGER))
+		return;
+
+	// Hillbilly Madness speed
+	if(g_iHillbillyLevel[iClient] > 0)
+		fSpeed += (g_iHillbillyLevel[iClient] * 0.03);
+
+	// Heavy Carry Bind 1 speed
+	if(g_bIsSuperCharger[iClient] == true)
+		fSpeed += (g_iSpikedLevel[iClient] * 0.10);
+	
+	//PrintToChat(iClient, "SetClientSpeedCharger: %f", fSpeed);
+}
+
+void SetClientSpeedTank(int iClient, float &fSpeed)
+{
+	if (g_iInfectedCharacter[iClient] != TANK)
+		return;
+
+	SetClientSpeedTankFire(iClient, fSpeed);
+	SetClientSpeedTankIce(iClient, fSpeed);
+	SetClientSpeedTankNecroTanker(iClient, fSpeed);
+	SetClientSpeedTankVampiric(iClient, fSpeed);
+
+	//PrintToChat(iClient, "SetClientSpeedTank: %f", fSpeed);
+}
+
+bool SetClientSpeedOverrides(int iClient, float &fSpeed)
+{
+	if (g_testingSpeedOverride[iClient] > 0.0)
+	{
+		fSpeed = g_testingSpeedOverride[iClient];
+		return true;
+	}
+
+	if (g_bMovementLocked[iClient] == true)
+	{
+		fSpeed = 0.0;
+		return true;
+	}
+
+	// If they are an infected ghost, then give them fast speed.
+	if(g_iClientTeam[iClient] == TEAM_INFECTED &&
+		GetEntData(iClient, g_iOffset_IsGhost, 1) == 1)
+	{
+		fSpeed = MOVEMENT_SPEED_INFECTED_GHOSTS;
+		return true;
+	}
+
+	// If choking a victim, dont give other movement speed buffs
+	if (g_iSmokerTalent1Level[iClient] > 0 &&
+		g_iInfectedCharacter[iClient] == SMOKER &&
+		g_bTalentsConfirmed[iClient] == true &&
+		g_iChokingVictim[iClient] > 0 && 
+		g_iClientTeam[iClient] == TEAM_INFECTED &&
+		g_bSmokerGrappled[g_iChokingVictim[iClient]])
+	{
+		fSpeed = (0.01 * g_iSmokerTalent1Level[iClient])
+		return true;
+	}
+
+	// Jockey Riding speed (set on the victim, not the jockey thats riding)
+	if (g_bJockeyGrappled[iClient] && 
+		g_iClientTeam[iClient] == TEAM_SURVIVORS &&
+		(g_fJockeyRideSpeed[iClient] != 1.0 || g_fJockeyRideSpeedVanishingActBoost[iClient] > 0.0))
+	{
+		fSpeed = g_fJockeyRideSpeed[iClient] + g_fJockeyRideSpeedVanishingActBoost[iClient];
+		return true;
+	}
+	
+	// Hunter lunging speed value
+	if (g_iInfectedCharacter[iClient] == HUNTER &&
+		g_bHunterIsLunging[iClient] == true &&
+		g_iHunterLungeState[iClient] != HUNTER_LUNGE_STATE_NONE)
+	{
+		switch (g_iHunterLungeState[iClient])
+		{
+			case HUNTER_LUNGE_STATE_BASE: fSpeed = HUNTER_LUNGE_MOVEMENT_SPEED_BASE;
+			case HUNTER_LUNGE_STATE_DASH: fSpeed = HUNTER_LUNGE_MOVEMENT_SPEED_DASH;
+			case HUNTER_LUNGE_STATE_FLOAT: fSpeed = HUNTER_LUNGE_MOVEMENT_SPEED_FLOAT;
+		}
+
+		return true;
+	}
+
+	// Hunter Immobility Zone Speed
+	if (g_bIsInImmobilityZone[iClient] == true)
+	{
+		fSpeed = HUNTER_IMMOBILITY_ZONE_SPEED;
+		return true;
+	}
+
+	// Lethal Injection poison slow
+	if (g_bIsHunterPoisoned[iClient] &&
+		g_iClientTeam[iClient] == TEAM_SURVIVORS)
+	{
+		fSpeed = HUNTER_POISON_VICTIM_SPEED;
+		return true;
+	}
+	
+	// Spitter adhession spit
+	if (g_fAdhesiveAffectAmount[iClient] > 0 &&
+		g_iClientTeam[iClient] == TEAM_SURVIVORS)
+	{
+		fSpeed = (1.0 - g_fAdhesiveAffectAmount[iClient]);
+		return true;
+	}
+
+	// Louis's Bind 2 Global Survivor Speed Override
+	if (g_bLouisSpeedHaxEnabled == true &&
+		g_iClientTeam[iClient] == TEAM_SURVIVORS && 
+		IsClientGrappled(iClient) == false)
+	{
+		fSpeed = LOUIS_SPEED_HAX_MOVEMENT_MULTIPLIER;
+		return true;
+	}
+
+	// Ice Tank's cold slow AOE Aura
+	if (g_bIceTankColdAuraDisabled[iClient] == false &&
+		g_fIceTankColdAuraSlowSpeedReduction[iClient] > 0.0 &&
+		g_iClientTeam[iClient] == TEAM_SURVIVORS)
+	{
+		fSpeed = 1.0 - g_fIceTankColdAuraSlowSpeedReduction[iClient];
+		// PrintToChatAll("SETTING COLD AURA SPEED %N: %f", iClient, 1.0 - g_fIceTankColdAuraSlowSpeedReduction[iClient]);
+		return true;
+	}
+
+	// Smoker's Smoke Cloud Speed
+	if (g_iSmokerSmokeCloudPlayer == iClient &&
+		g_iInfectedCharacter[iClient] == SMOKER &&
+		g_iClientTeam[iClient] == TEAM_INFECTED)
+	{
+		fSpeed = 0.4;
+		return true;
+	}
+	
+
+	return false;
+}

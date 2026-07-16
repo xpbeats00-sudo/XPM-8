@@ -1,0 +1,264 @@
+void ShowRoundStatsLastRoundIndividual(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	char strStatsText[700];
+	Format(strStatsText, sizeof(strStatsText),
+		"Your Stats Last Round\
+		\n \
+		\nSURVIVOR\
+		\n S.I. Killed:		%i Killed\
+		\n C.I. Killed:		%i Killed\
+		\n Headshots:	 %i HS\
+		\n \
+		\nINFECTED\
+		\n Survivors Killed:		  %i Killed\
+		\n Survivor Incaps:		  %i Incaps      \
+		\n Damage To Survivors: %i DMG\
+		\n \
+		\nPRESS 0 to Hide",
+		g_iStat_LastRound_ClientInfectedKilled[iClient],
+		g_iStat_LastRound_ClientCommonKilled[iClient],
+		g_iStat_LastRound_ClientCommonHeadshots[iClient],
+		g_iStat_LastRound_ClientSurvivorsKilled[iClient],
+		g_iStat_LastRound_ClientSurvivorsIncaps[iClient],
+		g_iStat_LastRound_ClientDamageToSurvivors[iClient]);
+
+	RoundStatsMenuDraw(iClient, strStatsText);
+}
+
+void ShowRoundStatsLastRoundTopPlayers(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	char strStatsText[700];
+	Format(strStatsText, sizeof(strStatsText),
+		"Top Players Last Round\
+		\n \
+		\nSURVIVORS\
+		\n Most S.I. Killed:		%s (%i Killed)\
+		\n Most C.I. Killed:		%s (%i Killed)\
+		\n Most Headshots:	 %s (%i HS)\
+		\n \
+		\nINFECTED\
+		\n Most Survivors Killed:		  %s (%i Killed)\
+		\n Most Survivor Incaps:		  %s (%i Incaps)\
+		\n Most Damage To Survivors: %s (%i DMG)     ",
+		g_strReward_SIKills, g_iReward_SIKills,
+		g_strReward_CIKills, g_iReward_CIKills,
+		g_strReward_HS, g_iReward_HS,
+		g_strReward_SurKills, g_iReward_SurKills,
+		g_strReward_SurIncaps, g_iReward_SurIncaps,
+		g_strReward_SurDmg, g_iReward_SurDmg);
+
+	RoundStatsMenuDraw(iClient, strStatsText);
+}
+
+void ShowRoundStatsPersonalDBStats(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	// If no data (query failed, no stats, or hasn't returned yet), skip to next panel
+	if (strlen(g_strPersonalDBStatsText[iClient]) <= 1)
+	{
+		RoundStatsPanel[iClient]++;
+		CreateTimer(0.1, TimerShowCurrentRoundStatsPanel, iClient, TIMER_FLAG_NO_MAPCHANGE);
+		return;
+	}
+
+	char strStatsText[700];
+	Format(strStatsText, sizeof(strStatsText),
+		"Your All-Time Stats\n %s",
+		g_strPersonalDBStatsText[iClient]);
+
+	RoundStatsMenuDraw(iClient, strStatsText, 0);
+}
+
+void ShowRoundStatsXPModTopPlayers(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	// If we dont have the the TopXPModPlayers yet, then skip to next panel
+	if (strlen(g_strTopXPModPlayersStatsText) <= 1)
+	{
+		RoundStatsPanel[iClient]++;
+		CreateTimer(0.1, TimerShowCurrentRoundStatsPanel, iClient, TIMER_FLAG_NO_MAPCHANGE);
+		return;
+	}
+
+	char strStatsText[700];
+	Format(strStatsText, sizeof(strStatsText),
+		"Top Players\n %s",
+		g_strTopXPModPlayersStatsText);
+
+	RoundStatsMenuDraw(iClient, strStatsText, 0);
+}
+
+void ShowRoundStatsTopPlayerLeaderboard(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	// If we dont have the leaderboard data yet, then end the panels
+	if (strlen(g_strTopPlayerLeaderboardText) <= 1)
+	{
+		RoundStatsPanel[iClient] = ROUND_STATS_PANEL_DONE;
+		return;
+	}
+
+	char strStatsText[512];
+	Format(strStatsText, sizeof(strStatsText),
+		"Leaderboard (30 Days)\n %s",
+		g_strTopPlayerLeaderboardText);
+
+	RoundStatsMenuDraw(iClient, strStatsText);
+}
+
+void RoundStatsMenuDraw(int iClient, const char[] strStatsText, int iMenuOptionNewLines = 0)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char strFullText[512];
+	Format(strFullText, sizeof(strFullText), "%s%s", strStartingNewLines, strStatsText);
+
+	char strNewLines[512];
+	GetNewLinesAutomatic(strFullText, strNewLines, iMenuOptionNewLines);
+
+	// Assemble final panel text
+	char strPanelText[512];
+	Format(strPanelText, sizeof(strPanelText), "%s%s%s", strFullText, strNewLines, strEndingNewLines);
+
+	Panel panel = new Panel();
+	panel.SetTitle(strPanelText);
+
+	for (int i = 0; i < 10; i++)
+		panel.DrawItem(" ", ITEMDRAW_NOTEXT);
+
+	panel.Send(iClient, RoundStatsMenuHandler, RoundToNearest(ROUND_STATS_PANEL_LIFETIME));
+	delete panel;
+}
+
+void RoundStatsMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_Select) 
+	{
+		HandleMenuPanelWeaponSwitching(iClient, itemNum);
+
+		if (itemNum >= 1 && itemNum <= 9)
+			CreateTimer(0.1, TimerShowCurrentRoundStatsPanel, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+		if (itemNum == 10)
+			RoundStatsPanel[iClient] = ROUND_STATS_PANEL_DONE;
+	}
+}
+
+void ShowRoundStatsPanelsToPlayer(int iClient)
+{
+	// Fire async DB query so personal stats are ready by the time that panel shows
+	SQLGetPersonalPlayerStatistics(iClient);
+
+	// Last Round Stats Panels
+	RoundStatsPanel[iClient] = ROUND_STATS_PANEL_LAST_ROUND_INDIVIDUAL;
+	CreateTimer(0.1, TimerShowCurrentRoundStatsPanel, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(ROUND_STATS_PANEL_LIFETIME, TimerSetAndShowNewRoundStatsPanel, iClient, TIMER_REPEAT);
+}
+
+Action TimerShowCurrentRoundStatsPanel(Handle timer, int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Stop;
+	
+	switch (RoundStatsPanel[iClient])
+	{
+		case ROUND_STATS_PANEL_LAST_ROUND_INDIVIDUAL: 		ShowRoundStatsLastRoundIndividual(iClient);
+		case ROUND_STATS_PANEL_LAST_ROUND_TOP_PLAYERS: 		ShowRoundStatsLastRoundTopPlayers(iClient);
+		case ROUND_STATS_PANEL_PERSONAL_DB_STATS: 			ShowRoundStatsPersonalDBStats(iClient);
+		case ROUND_STATS_PANEL_XPMOD_TOP_PLAYERS: 			ShowRoundStatsXPModTopPlayers(iClient);
+		case ROUND_STATS_PANEL_TOP_PLAYER_LEADERBOARD: 	ShowRoundStatsTopPlayerLeaderboard(iClient);
+	}
+
+	return Plugin_Stop;
+}
+
+Action TimerSetAndShowNewRoundStatsPanel(Handle timer, int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Stop;
+
+	// Set the the next stat type
+	RoundStatsPanel[iClient]++;
+
+	if (RoundStatsPanel[iClient] >= ROUND_STATS_PANEL_DONE)
+	{
+		RoundStatsPanel[iClient] = ROUND_STATS_PANEL_DONE;
+		return Plugin_Stop;
+	}
+
+	CreateTimer(0.2, TimerShowCurrentRoundStatsPanel, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
+}
+
+void HandleMenuPanelWeaponSwitching(int iClient, int itemNum)
+{
+	switch (itemNum)
+	{
+		case 1: //Switch to Slot 1 (Primary Weapon)
+		{
+			ClientCommand(iClient, "slot0");
+			ClientCommand(iClient, "slot1");
+			
+		}
+		case 2: //Switch to Slot 2 (Secondary Weapon)
+		{
+			ClientCommand(iClient, "slot0");
+			ClientCommand(iClient, "slot2");
+		}
+		case 3: //Switch to Slot 3 (Explosive Weapon)
+		{
+			ClientCommand(iClient, "slot0");
+			ClientCommand(iClient, "slot3");
+		}
+		case 4: //Switch to Slot 4 (Health Slot)
+		{
+			ClientCommand(iClient, "slot0");
+			ClientCommand(iClient, "slot4");
+		}
+		case 5: //Switch to Slot 5 (Boost Slot)
+		{
+			ClientCommand(iClient, "slot0");
+			ClientCommand(iClient, "slot5");
+		}
+	}
+}
+
+void StoreLastRoundClientsStats()
+{
+	for(int iClient = 1; iClient <= MaxClients; iClient++)
+	{		
+		if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+			continue;
+		
+		// Survivor Stats
+		g_iStat_LastRound_ClientInfectedKilled[iClient] = g_iStat_ClientInfectedKilled[iClient];
+		g_iStat_LastRound_ClientCommonKilled[iClient] = g_iStat_ClientCommonKilled[iClient];
+		g_iStat_LastRound_ClientCommonHeadshots[iClient] = g_iStat_ClientCommonHeadshots[iClient];
+		// Infected Stats
+		g_iStat_LastRound_ClientSurvivorsKilled[iClient] = g_iStat_ClientSurvivorsKilled[iClient];
+		g_iStat_LastRound_ClientSurvivorsIncaps[iClient] = g_iStat_ClientSurvivorsIncaps[iClient];
+		g_iStat_LastRound_ClientDamageToSurvivors[iClient] = g_iStat_ClientDamageToSurvivors[iClient];
+		// Additional Stats
+		g_iStat_LastRound_ClientDamageTakenSurvivor[iClient] = g_iStat_ClientDamageTakenSurvivor[iClient];
+		g_iStat_LastRound_ClientDamageTakenInfected[iClient] = g_iStat_ClientDamageTakenInfected[iClient];
+		g_iStat_LastRound_ClientFriendlyFireDamage[iClient] = g_iStat_ClientFriendlyFireDamage[iClient];
+	}
+}

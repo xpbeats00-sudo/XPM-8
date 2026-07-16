@@ -1,0 +1,305 @@
+bool IsCommonInfected(int iEntity, const char[] strKnownClassname)
+{	
+	if (strlen(strKnownClassname) > 0)
+		return StrEqual(strKnownClassname, "infected");
+	
+	if (RunEntityChecks(iEntity))
+	{
+		char strClassname[100];
+		GetEntityClassname(iEntity,strClassname,100);
+		return StrEqual(strClassname, "infected");
+	}
+
+	return false;
+}
+
+// Check the CI is still alive, by checking health and also
+// importantly if the CI is a ragdoll because health can not
+// go to 0 and they are still dead in the game.
+bool IsCommonInfectedAlive(int iEntity)
+{
+	if (RunEntityChecks(iEntity) &&
+		GetEntProp(iEntity, Prop_Data, "m_iHealth") > 0 &&
+		GetEntProp(iEntity, Prop_Data, "m_bClientSideRagdoll") == 0)
+		return true;
+
+	return false;
+}
+
+bool IsEnhancedCI(int iEntity)
+{
+	// Find if the Enhanced CI entity in the list, if so they are enchanced
+	if (GetEnhancedCIListIndexID(iEntity) >= 0)
+		return true;
+	
+	return false;
+}
+
+// Returns 0 if the infected is not in the enhanced infected list
+int GetEnhancedCIListIndexID(int iEntity)
+{
+	// Find the Enhanced CI index ID using the entity ID in the list
+	return FindIndexInArrayListUsingValue(g_listEnhancedCIEntities, iEntity, ENHANCED_CI_ENTITY_ID);
+}
+
+void EnhanceCIIfNeeded(int iEntity)
+{
+	// Convert newly spawned CI into Necrofeasters during the Boomer's conversion window
+	if (g_bBoomerNecrofeasterConversion)
+	{
+		CreateTimer(0.2, TimerConvertNewCIToNecrofeaster, iEntity, TIMER_FLAG_NO_MAPCHANGE);
+		return;
+	}
+
+	// Random chance to spawn enhanced CI	
+	// Use a timer, or size doesnt work properly
+	if (GetRandomFloat(0.0, 1.0) <= CalculateCIEnhancementChance())
+		CreateTimer(0.1, TimerSpawnRandomlyEnhancedCIForDirector, iEntity, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+float CalculateCIEnhancementChance()
+{
+	int iCombinedSurvivorLevel = 0;
+	float fNormalizedSurvivorLevel = 0.0;
+
+	// Get all the survivor's levels add them up
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (RunClientChecks(i) && 
+			g_iClientTeam[i] == TEAM_SURVIVORS &&
+			g_bClientLoggedIn[i] == true &&
+			IsFakeClient(i) == false &&
+			IsPlayerAlive(i) == true)
+			iCombinedSurvivorLevel += g_iClientLevel[i];
+	}
+
+	// Normalize the combined survivor level (note: this assumes 4 survivors)
+	fNormalizedSurvivorLevel = iCombinedSurvivorLevel / 120.0;
+
+	// Calculate and return the spawn chance based on normalized survivor level and max chance
+	return fNormalizedSurvivorLevel * ENHANCEMENT_CI_CHANCE_MAX;
+}
+
+void PushZombieOnEnhancedCIEntitiesList(int iEntity, int iEnchancedCIType)
+{
+	if (g_listEnhancedCIEntities == INVALID_HANDLE)
+		return;
+
+	// Push a new item onto the list
+	int index = g_listEnhancedCIEntities.Push(iEntity);
+	// Store the entity ID
+	g_listEnhancedCIEntities.Set(index, iEntity, ENHANCED_CI_ENTITY_ID);
+	// Set the type for the Enhanced CI
+	g_listEnhancedCIEntities.Set(index, iEnchancedCIType, ENHANCED_CI_TYPE);
+	
+	DebugLog(DEBUG_MODE_VERBOSE, "g_listEnhancedCIEntities %i: Type: %i", iEntity, iEnchancedCIType);
+}
+
+void PopZombieOffEnhancedCIEntitiesList(int iEntity)
+{
+	if (g_listEnhancedCIEntities == INVALID_HANDLE)
+		return;
+
+	// Find if the Enhanced CI entity in the list
+	int iEnhancedCIIndex = FindIndexInArrayListUsingValue(g_listEnhancedCIEntities, iEntity, ENHANCED_CI_ENTITY_ID);
+	
+	// Remove it from the array if it was found
+	if (iEnhancedCIIndex >= 0)
+	{
+		g_listEnhancedCIEntities.Erase(iEnhancedCIIndex);
+		DebugLog(DEBUG_MODE_VERBOSE, "Enhanced CI Destroyed %i", iEntity);
+	}
+}
+
+public void PrintAllInEnhancedCIEntityList()
+{
+	if (g_listEnhancedCIEntities == INVALID_HANDLE)
+		return;
+
+	PrintToServer("g_listEnhancedCIEntities:");
+	for (int i=0; i < g_listEnhancedCIEntities.Length; i++)
+	{
+		int iEntityID = g_listEnhancedCIEntities.Get(i, ENHANCED_CI_ENTITY_ID);
+		int iType = g_listEnhancedCIEntities.Get(i, ENHANCED_CI_TYPE);
+		PrintToServer("    %i: id %i, type %i", i, iEntityID, iType);
+	}
+}
+
+Action TimerSpawnRandomlyEnhancedCIForDirector(Handle timer, int iEntity)
+{
+	if (IsValidEntity(iEntity) && IsCommonInfected(iEntity, ""))
+		EnhanceCommonInfected(iEntity, CI_SMALL_OR_BIG_RANDOM, ENHANCED_CI_TYPE_RANDOM);
+	
+	return Plugin_Stop;
+}
+
+void EnhanceCommonInfected(int iZombie, int iBigOrSmall = CI_SMALL_OR_BIG_NONE, int iEnhancedCISpecifiedType = ENHANCED_CI_TYPE_NONE)
+{
+	// Hook the CI so damage can be better handled, such as capping melee damage
+	SDKHook(iZombie, SDKHook_OnTakeDamage, OnTakeDamage);
+
+	if (iBigOrSmall == CI_SMALL_OR_BIG_RANDOM || iBigOrSmall == CI_BIG || iBigOrSmall == CI_SMALL)
+	{
+		float fHealthAndSizeMultiplier = GetRandomFloat(0.0, 1.0);
+		// If CI_BIG is specified, then spawn a big zombie, otherwise, roll the dice for 50/50 BIG OR SMALL
+		if(iBigOrSmall == CI_BIG || GetRandomInt(0, 1))
+		{
+			// Big Zombie, High Health
+			EnhanceCISetScale(iZombie, (CI_BIG_MIN_SIZE + ( (CI_BIG_MAX_SIZE - CI_BIG_MIN_SIZE) * fHealthAndSizeMultiplier) ) );
+			EnhanceCISetHealth(iZombie, RoundToNearest(CI_BIG_MIN_HEALTH + ( (CI_BIG_MAX_HEALTH - CI_BIG_MIN_HEALTH) * fHealthAndSizeMultiplier) ) );
+		}
+		else
+		{
+			// Small Zombie, Low Health
+			EnhanceCISetScale(iZombie, (CI_SMALL_MIN_SIZE + ( (CI_SMALL_MAX_SIZE - CI_SMALL_MIN_SIZE) * fHealthAndSizeMultiplier) ) );
+			EnhanceCISetHealth(iZombie, RoundToNearest(CI_SMALL_MIN_HEALTH + ( (CI_SMALL_MAX_HEALTH - CI_SMALL_MIN_HEALTH) * fHealthAndSizeMultiplier) ) );
+		}
+	}
+	else if(iBigOrSmall == CI_REALLY_BIG)
+	{
+		// Really Big Zombie, Really High Health
+		EnhanceCISetScale(iZombie, CI_REALLY_BIG_SIZE);
+		EnhanceCISetHealth(iZombie, CI_REALLY_BIG_HEALTH);
+	}
+	else if(iBigOrSmall == CI_REALLY_SMALL)
+	{
+		// Really Small Zombie, Really Low Health
+		EnhanceCISetScale(iZombie, CI_REALLY_SMALL_SIZE);
+		EnhanceCISetHealth(iZombie, CI_REALLY_SMALL_HEALTH);
+	}
+	else if(iBigOrSmall == CI_REALLY_BIG_JIMMY)
+	{
+		// Really Big Zombie, Really High Health
+		EnhanceCISetScale(iZombie, CI_REALLY_BIG_JIMMY_SIZE);
+		EnhanceCISetHealth(iZombie, CI_REALLY_BIG_JIMMY_HEALTH);
+	}
+
+	// Handle randomly available enhanced properties
+	if (iEnhancedCISpecifiedType != ENHANCED_CI_TYPE_NONE)
+	{
+		int iEnhancementType = iEnhancedCISpecifiedType == ENHANCED_CI_TYPE_RANDOM ? GetRandomInt(ENHANCED_CI_TYPE_FIRE, ENHANCED_CI_TYPE_VAMPIRIC) : iEnhancedCISpecifiedType;
+		switch (iEnhancementType)
+		{
+			case ENHANCED_CI_TYPE_FIRE: 	EnhanceCISet_Fire(iZombie);
+			case ENHANCED_CI_TYPE_ICE: 		EnhanceCISet_Ice(iZombie);
+			case ENHANCED_CI_TYPE_NECRO: 	EnhanceCISet_Necro(iZombie);
+			case ENHANCED_CI_TYPE_VAMPIRIC:	EnhanceCISet_Vampiric(iZombie);
+		}
+	}
+}
+
+void EnhanceCISetScale(int iZombie, float fScale = -1.0)
+{
+	if (fScale == -1.0)
+		fScale = GetRandomFloat(CI_SMALL_MIN_SIZE, CI_BIG_MAX_SIZE);
+	
+	SetEntPropFloat(iZombie, Prop_Send, "m_flModelScale", fScale);
+}
+
+void EnhanceCISetHealth(int iZombie, int iHealth = -1)
+{
+	if (iHealth == -1.0)
+		iHealth = GetRandomInt(CI_SMALL_MIN_HEALTH, CI_BIG_MAX_HEALTH);
+
+	SetPlayerHealth(iZombie, -1, iHealth);
+}
+
+void EnhanceCISet_Fire(int iZombie)
+{
+	// Store the entity and type into the Enhanced CI Array List
+	PushZombieOnEnhancedCIEntitiesList(iZombie, ENHANCED_CI_TYPE_FIRE);
+
+	// Change Skin Color (Doesn't appear to work in L4D2 for CI)
+	// SetClientRenderColor(iZombie, 255, 200, 30, 255, RENDER_MODE_NORMAL);
+	// Change Outline Glow
+	SetClientGlow(iZombie, 250, 50, 20, GLOWTYPE_ONVISIBLE);
+}
+
+void EnhanceCISet_Ice(int iZombie)
+{
+	// Store the entity and type into the Enhanced CI Array List
+	PushZombieOnEnhancedCIEntitiesList(iZombie, ENHANCED_CI_TYPE_ICE);
+
+	// Change Skin Color (Doesn't appear to work in L4D2 for CI)
+	// SetClientRenderColor(iZombie, 0, 255, 255, 255, RENDER_MODE_NORMAL);
+	// Change Outline Glow
+	SetClientGlow(iZombie, 80, 240, 255, GLOWTYPE_ONVISIBLE);
+}
+
+void EnhanceCISet_Necro(int iZombie)
+{
+	// Store the entity and type into the Enhanced CI Array List
+	PushZombieOnEnhancedCIEntitiesList(iZombie, ENHANCED_CI_TYPE_NECRO);
+
+	// Change Skin Color (Doesn't appear to work in L4D2 for CI)
+	// SetClientRenderColor(iZombie, 0, 130, 40, 255, RENDER_MODE_NORMAL);
+	// Change Outline Glow
+	SetClientGlow(iZombie, 0, 130, 40, GLOWTYPE_ONVISIBLE);
+}
+
+void EnhanceCISet_Vampiric(int iZombie)
+{
+	// Store the entity and type into the Enhanced CI Array List
+	PushZombieOnEnhancedCIEntitiesList(iZombie, ENHANCED_CI_TYPE_VAMPIRIC);
+
+	// Change Skin Color (Doesn't appear to work in L4D2 for CI)
+	// SetClientRenderColor(iZombie, 100, 0, 255, 255, RENDER_MODE_NORMAL);
+	// Change Outline Glow
+	SetClientGlow(iZombie, 100, 0, 255, GLOWTYPE_ONVISIBLE);
+}
+
+void EnhanceCIHandleDamage_Fire(int iAttacker, int iVictim)
+{
+	SuppressNeverUsedWarning(iAttacker);
+
+	SetFireToPlayer(iVictim, iAttacker, ENHANCED_CI_FIRE_BURN_DURATION);
+	IgniteEntity(iVictim, ENHANCED_CI_FIRE_BURN_DURATION, false);
+}
+
+void EnhanceCIHandleDamage_Ice(int iAttacker, int iVictim)
+{
+	SuppressNeverUsedWarning(iAttacker);
+
+	CreateTimer(0.1, Timer_FreezePlayerByTank, iVictim, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(ENHANCED_CI_ICE_FREEZE_DURATION, Timer_UnfreezePlayerByTank, iVictim, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+void EnhanceCIHandleDamage_Necro(int iAttacker, int iVictim)
+{
+	SuppressNeverUsedWarning(iAttacker);
+
+	// Only spawn if the dice roll says to
+	if (GetRandomFloat(0.0, 1.0) <= ENHANCED_CI_NECRO_SPAWN_CHANCE)
+		return;
+
+	if (RunClientChecks(iVictim) == false)
+		return;
+	
+	// Get player location to spawn infected around
+	float xyzLocation[3];
+	GetClientAbsOrigin(iVictim, xyzLocation);
+
+	// Roll the dice for a uncommon
+	int iUncommon = GetRandomFloat(0.0, 1.0) <= ENHANCED_CI_NECRO_SPAWN_UNCOMMON_CHANCE ? UNCOMMON_CI_RANDOM : UNCOMMON_CI_NONE;
+
+	// Roll the dice for big or small
+	int iBigOrSmall = GetRandomFloat(0.0, 1.0) <= ENHANCED_CI_NECRO_SPAWN_BIG_SMALL_CHANCE ? CI_SMALL_OR_BIG_RANDOM : CI_SMALL_OR_BIG_NONE;
+
+	// Roll the dice for an enahnced CI
+	int iEnhancedCISpecifiedType = GetRandomFloat(0.0, 1.0) <= ENHANCED_CI_NECRO_SPAWN_ENHANCED_CHANCE ? ENHANCED_CI_TYPE_RANDOM : ENHANCED_CI_TYPE_NONE;
+
+	SpawnCIAroundLocation(xyzLocation, 1, iUncommon, iBigOrSmall, iEnhancedCISpecifiedType);
+}
+
+void EnhanceCIHandleDamage_Vampiric(int iAttacker, int iVictim)
+{
+	DealDamage(iVictim, iAttacker, 1);
+
+	int iCurrentHealth = GetPlayerHealth(iAttacker);
+
+	// Clamp health and apply
+	if (iCurrentHealth + ENHANCED_CI_VAMPIRIC_LIFE_STEAL_AMOUNT <= CI_BIG_MAX_HEALTH)
+		SetPlayerHealth(iAttacker, -1, iCurrentHealth + ENHANCED_CI_VAMPIRIC_LIFE_STEAL_AMOUNT);
+	else
+		SetPlayerHealth(iAttacker, -1, CI_BIG_MAX_HEALTH);
+}
