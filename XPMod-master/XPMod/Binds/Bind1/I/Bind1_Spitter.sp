@@ -1,6 +1,8 @@
 void Bind1Press_Spitter(int iClient)
 {
-    if((g_iClientInfectedClass1[iClient] == SPITTER) || (g_iClientInfectedClass2[iClient] == SPITTER) || (g_iClientInfectedClass3[iClient] == SPITTER))
+    // See Bind2Press_Boomer for why this checks the live character instead of the
+    // separate, desync-prone "3 saved class slots" array.
+    if(g_iInfectedCharacter[iClient] == SPITTER)
     {
         if(g_iMaterialLevel[iClient] > 0)
         {

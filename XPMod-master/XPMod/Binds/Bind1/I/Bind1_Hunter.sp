@@ -1,8 +1,8 @@
 void Bind1Press_Hunter(int iClient)
 {
-	if ((g_iClientInfectedClass1[iClient] != HUNTER) && 
-		(g_iClientInfectedClass2[iClient] != HUNTER) && 
-		(g_iClientInfectedClass3[iClient] != HUNTER))
+	// See Bind2Press_Boomer for why this checks the live character instead of the
+	// separate, desync-prone "3 saved class slots" array.
+	if (g_iInfectedCharacter[iClient] != HUNTER)
 	{
 		PrintToChat(iClient, "\x03[XPMod] \x05You dont have the Hunter as one of your classes");
 		return;

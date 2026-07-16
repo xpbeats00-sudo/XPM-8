@@ -1,6 +1,8 @@
 void Bind2Press_Charger(int iClient)
 {
-	if (g_iClientInfectedClass1[iClient] != CHARGER && g_iClientInfectedClass2[iClient] != CHARGER && g_iClientInfectedClass3[iClient] != CHARGER)
+	// See Bind2Press_Boomer for why this checks the live character instead of the
+	// separate, desync-prone "3 saved class slots" array.
+	if (g_iInfectedCharacter[iClient] != CHARGER)
 	{
 		PrintToChat(iClient, "\x03[XPMod] \x05You dont have the Charger as one of your classes");
 		return;

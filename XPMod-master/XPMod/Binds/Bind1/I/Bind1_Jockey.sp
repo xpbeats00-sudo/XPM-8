@@ -1,8 +1,8 @@
 void Bind1Press_Jockey(int iClient)
 {
-	if ((g_iClientInfectedClass1[iClient] != JOCKEY) && 
-		(g_iClientInfectedClass2[iClient] != JOCKEY) && 
-		(g_iClientInfectedClass3[iClient] != JOCKEY))
+	// See Bind2Press_Boomer for why this checks the live character instead of the
+	// separate, desync-prone "3 saved class slots" array.
+	if (g_iInfectedCharacter[iClient] != JOCKEY)
 	{
 		PrintHintText(iClient, "You dont have the Jockey as one of your classes");
 		return;

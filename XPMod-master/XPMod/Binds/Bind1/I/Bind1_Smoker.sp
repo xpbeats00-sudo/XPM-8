@@ -1,8 +1,8 @@
 void Bind1Press_Smoker(int iClient)
 {
-	if (g_iClientInfectedClass1[iClient] != SMOKER && 
-		g_iClientInfectedClass2[iClient] != SMOKER &&
-		g_iClientInfectedClass3[iClient] != SMOKER)
+	// See Bind2Press_Boomer for why this checks the live character instead of the
+	// separate, desync-prone "3 saved class slots" array.
+	if (g_iInfectedCharacter[iClient] != SMOKER)
 	{
 		PrintHintText(iClient, "You dont have the Smoker as one of your classes");
 		return;

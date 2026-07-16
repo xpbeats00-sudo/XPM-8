@@ -1,6 +1,8 @@
 void Bind1Press_Boomer(int iClient)
 {
-    if((g_iClientInfectedClass1[iClient] == BOOMER) || (g_iClientInfectedClass2[iClient] == BOOMER) || (g_iClientInfectedClass3[iClient] == BOOMER))
+    // See Bind2Press_Boomer for why this checks the live character instead of the
+    // separate, desync-prone "3 saved class slots" array.
+    if(g_iInfectedCharacter[iClient] == BOOMER)
     {
         if(g_iAcidicLevel[iClient] > 0)
         {
