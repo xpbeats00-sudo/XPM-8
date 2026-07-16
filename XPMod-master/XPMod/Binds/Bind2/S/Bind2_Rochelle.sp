@@ -33,8 +33,14 @@ void Bind2Press_Rochelle(int iClient)
                 
                 CreateRochelleSmoke(iClient);
             }
+            else if (IsIncap(iClient) == true)
+                PrintHintText(iClient, "You cannot become a shadow ninja while incapacitated.");
+            else
+                PrintHintText(iClient, "You are already a shadow ninja.");
         }
         else
             PrintHintText(iClient, "Not enough focus for a shadow ninja. You rack disciprine!");
     }
+    else
+        PrintHintText(iClient, "You must have Shadow Ninja (Level 1) for Bind 2");
 }

@@ -1,9 +1,5 @@
 void Bind2Press_Ellis(int iClient)
 {
-    // TEMP DEBUG - remove once Bind2 is confirmed working
-    PrintToChat(iClient, "\x03[XPMod DEBUG] \x01Bind2_Ellis: FireLevel=%d BindUses2=%d UsingFireStorm=%d",
-        g_iFireLevel[iClient], g_iClientBindUses_2[iClient], g_bUsingFireStorm[iClient]);
-
     if(g_iFireLevel[iClient]>0)	//Ellis's actionkey 2
     {
         if(g_iClientBindUses_2[iClient]<3)
@@ -44,8 +40,12 @@ void Bind2Press_Ellis(int iClient)
                 PrintHintText(iClient, "You have pleased the fire god Kagu-Tsuchi and are granted the gift of fire for%3.0f seconds.", time);
                 g_iClientBindUses_2[iClient]++;
             }
+            else
+                PrintHintText(iClient, "You are already engulfed in Fire Storm.");
         }
         else
             PrintHintText(iClient, "Kagu-Tsuchi grows tired of you for now, don't piss him off!");
     }
+    else
+        PrintHintText(iClient, "You must have Fire Storm (Level 1) for Bind 2");
 }

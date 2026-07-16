@@ -62,4 +62,6 @@ void Bind1Press_Coach(int iClient)
         else
             PrintHintText(iClient, "Your out of mountable turrets.");
     }
+    else
+        PrintHintText(iClient, "You must have Lead by Example (Level 1) for Bind 1");
 }

@@ -1,11 +1,18 @@
 void Bind1Press_Rochelle(int iClient)
 {
-	if (RunClientChecks(iClient) == false || 
-		IsFakeClient(iClient) == true ||
-		IsClientGrappled(iClient) || 
+	if (RunClientChecks(iClient) == false ||
+		IsFakeClient(iClient) == true)
+		return;
+
+	if (g_iSmokeLevel[iClient] == 0)
+	{
+		PrintHintText(iClient, "You must have Smoke and Mirrors (Level 1) for Bind 1");
+		return;
+	}
+
+	if (IsClientGrappled(iClient) ||
 		IsIncap(iClient) == true ||
 		g_bIsClientDown[iClient] == true ||
-		g_iSmokeLevel[iClient] == 0 ||
 		g_bTalentsConfirmed[iClient] == false ||
 		canchangemovement[iClient] == false)
 		return;

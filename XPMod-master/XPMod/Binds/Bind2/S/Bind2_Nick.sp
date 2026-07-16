@@ -15,4 +15,6 @@ void Bind2Press_Nick(int iClient)
 		else
 			PrintHintText(iClient, "You are too tired to use any more of your medical expertise for now.");
 	}
+	else
+		PrintHintText(iClient, "You must have Desperate Measures (Level 1) for Bind 2");
 }

@@ -31,4 +31,6 @@ void Bind1Press_Bill(int iClient)
         else
             PrintHintText(iClient, "Wait a few seconds for more improvised explosives.");
     }
+    else
+        PrintHintText(iClient, "You must have Die Hard (Level 1) for Bind 1");
 }

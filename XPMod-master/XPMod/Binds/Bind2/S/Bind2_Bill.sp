@@ -8,7 +8,9 @@ void Bind2Press_Bill(int iClient)
             RunCheatCommand(iClient, "upgrade_add", "upgrade_add LASER_SIGHT");
             g_iClientBindUses_2[iClient]++;
         }
-        else 
+        else
             PrintHintText(iClient, "You are out of M60 machine guns.");
     }
+    else
+        PrintHintText(iClient, "You must have Promotional Benefits (Level 1) for Bind 2");
 }

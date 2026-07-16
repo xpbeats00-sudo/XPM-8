@@ -1,9 +1,5 @@
 void Bind1Press_Ellis(int iClient)
 {
-    // TEMP DEBUG - remove once Bind1 is confirmed working
-    PrintToChat(iClient, "\x03[XPMod DEBUG] \x01Bind1_Ellis: MetalLevel=%d BindUses1=%d OnGround=%d",
-        g_iMetalLevel[iClient], g_iClientBindUses_1[iClient], (GetEntityFlags(iClient) & FL_ONGROUND) != 0);
-
     if(g_iMetalLevel[iClient]> 0)	//Ellis's Ammo Bind
     {
         if(g_iClientBindUses_1[iClient]<3)
@@ -56,4 +52,6 @@ void Bind1Press_Ellis(int iClient)
         else
             PrintHintText(iClient, "You are out of ammo piles.");
     }
+    else
+        PrintHintText(iClient, "You must have Mechanic Affinity (Level 1) for Bind 1");
 }
