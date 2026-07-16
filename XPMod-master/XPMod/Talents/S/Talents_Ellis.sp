@@ -19,7 +19,7 @@ void TalentsLoad_Ellis(int iClient)
 			SetConVarFloat(FindConVar("upgrade_laser_sight_spread_factor"), g_fMaxLaserAccuracy);
 		}
 		
-		g_iClientBindUses_1[iClient] = 3 - RoundToCeil(g_iMetalLevel[iClient] * 0.5);
+		g_iClientBindUses_1[iClient] = 0;
 	}
 	
 	if(g_iFireLevel[iClient] > 0)
