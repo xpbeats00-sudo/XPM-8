@@ -94,6 +94,7 @@ public void OnPluginStart()
 	CreateTimer(1.0, Timer1SecondGlobalRepeating, 0, TIMER_REPEAT);
 	CreateTimer(2.0, Timer2SecondGlobalRepeating, 0, TIMER_REPEAT);
 	CreateTimer(3.0, TimerShowBotInfectedSI, 0, TIMER_REPEAT);
+	CreateTimer(BOT_STUCK_CHECK_INTERVAL, TimerCheckStuckBotSurvivors, 0, TIMER_REPEAT);
 	CreateTimer(1.0, TimerRepeatStoreAllPlayersHealth, 0, TIMER_REPEAT);
 	CreateTimer(0.1, TimerIDD, 0, TIMER_REPEAT);
 	CreateTimer(90.0, PrintUnsetClassesMessage, 0, TIMER_REPEAT);

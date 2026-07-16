@@ -340,6 +340,19 @@ bool g_bBotXPMGoalAccomplished[MAXPLAYERS + 1];
 int g_iBotXPMGoalTarget[MAXPLAYERS + 1];
 float g_xyzBotXPMGoalLocation[MAXPLAYERS + 1][3];
 
+// Stuck bot survivor detection (see TimerCheckStuckBotSurvivors, Timers_Generic.sp).
+// Native L4D2 bot AI reacts to nearby threats fine, but without a human to encourage
+// forward momentum an all-bot team can stall indefinitely once the immediate area is
+// clear - this reuses the existing SetBotFocusedOnXPMGoal/CommandABot machinery above
+// (already proven working via Smoker's Bind 2) to nudge them along instead.
+float g_fLastSurvivorFlowDistance;
+float g_fLastBotSurvivorPosition[MAXPLAYERS + 1][3];
+#define BOT_STUCK_CHECK_INTERVAL       20.0
+#define BOT_STUCK_MIN_MOVE_DISTANCE    150.0
+#define BOT_STUCK_MIN_FLOW_PROGRESS    10.0
+#define BOT_STUCK_REGROUP_DISTANCE     300.0
+#define BOT_STUCK_EXTRAPOLATE_DISTANCE 300.0
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////     Test Variables     /////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
