@@ -43,6 +43,10 @@ int g_iDefaultInfectedSlot2 = JOCKEY;
 ConVar g_hCVar_DefaultInfecttedSlot3;
 int g_iDefaultInfectedSlot3 = SMOKER;
 
+// Rebindable ability command names (see RegisterBindCommandAlias in Binds.sp)
+ConVar g_hCVar_Bind1Command;
+ConVar g_hCVar_Bind2Command;
+
 
 
 //Default and Max L4D2 Convar values

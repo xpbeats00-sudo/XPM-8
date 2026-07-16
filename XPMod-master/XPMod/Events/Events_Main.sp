@@ -139,8 +139,12 @@ Action SayCmd(int iClient, int args)
 		BanMeMenuDraw(iClient);
 		return Plugin_Handled;
 	}
-		
-	
+
+	// Chat fallback for Ability Bind 1/2 (!skill1, !skill2) - see ChatBindFallback in Binds.sp
+	if(ChatBindFallback(iClient, strArgument1) == true)
+		return Plugin_Handled;
+
+
 	//Change the color of the admin text in the chat to green
 	if(GetUserAdmin(iClient) != INVALID_ADMIN_ID)
 	{
@@ -188,7 +192,11 @@ Action SayTeamCmd(int iClient, int args)
 		BanMeMenuDraw(iClient);
 		return Plugin_Handled;
 	}
-	
+
+	// Chat fallback for Ability Bind 1/2 (!skill1, !skill2) - see ChatBindFallback in Binds.sp
+	if(ChatBindFallback(iClient, strArgument1) == true)
+		return Plugin_Handled;
+
 	int i;
 	for(i = 1; i <= MaxClients; i++)
 	{

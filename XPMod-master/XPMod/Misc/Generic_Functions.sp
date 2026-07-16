@@ -1040,6 +1040,7 @@ bool IsClientGrappled(int iClient)
 Action PrintXPModHelpMessage(int iClient, int args)
 {
 	PrintToChat(iClient, "\x03[XPMod] \x05Check out \x04xpmod.net\x05 or join the XPMod discord for help.");
+	PrintToChat(iClient, "\x03[XPMod] \x05Abilities: bind a free key (\x04not 1/2\x05, those are your weapons) to \x04xpmbind1\x05/\x04xpmbind2\x05, e.g. \x04bind mouse4 xpmbind1\x05. Or just type \x04!skill1\x05/\x04!skill2\x05 in chat.");
 	PrintHintText(iClient, "Check out xpmod.net or join the XPMod discord for help.");
 	return Plugin_Handled;
 }

@@ -4,8 +4,14 @@ void SetupConsoleCommands()
 	RegConsoleCmd("website", MotdPanel);
 	RegConsoleCmd("xpmhelp", PrintXPModHelpMessage);
 	//RegConsoleCmd("resetmyaccount", ResetAll);		//Reset Level, skillpoints, XP,  and talents (taking this out to avoid issues)
-	RegConsoleCmd("xpmbind1", Bind1Press);				//This is the bound key function for ultimate abilities, Bind 1
-	RegConsoleCmd("xpmbind2", Bind2Press);				//This is the bound key function for ultimate abilities, Bind 2
+	// Default bind commands - always registered so existing player configs/binds never break.
+	RegConsoleCmd("xpmbind1", Bind1Press, "XPMod Ability Bind 1 (default command)");	//This is the bound key function for ultimate abilities, Bind 1
+	RegConsoleCmd("xpmbind2", Bind2Press, "XPMod Ability Bind 2 (default command)");	//This is the bound key function for ultimate abilities, Bind 2
+	// sm_xpmod_bind1/sm_xpmod_bind2 (set in xpmod.cfg or console) each register one EXTRA
+	// command name pointing at the same callback, e.g. to dodge a collision with another
+	// plugin. The hardcoded defaults above are unaffected either way.
+	RegisterBindCommandAlias(g_hCVar_Bind1Command, "xpmbind1", Bind1Press, 1);
+	RegisterBindCommandAlias(g_hCVar_Bind2Command, "xpmbind2", Bind2Press, 2);
 	RegConsoleCmd("xpmbinduses", ShowBindsRemaining);	//Display the total number of bind1 and bind2 uses left
 	RegConsoleCmd("buy", ShowUserLoadoutMenu);			// People always use this buy command from other servers, show them that they can buy equipment in xpmod
 	RegConsoleCmd("banme", QuickBan);

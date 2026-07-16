@@ -15,6 +15,7 @@ bin/
 maps/
 materials/
 models/
+!XPMod-master/XPMod/Database/Models/
 scenes/
 scripts/
 gfx/

@@ -53,6 +53,16 @@ void SetupXPMConVars()
 	g_hCVar_DefaultInfecttedSlot3 = CreateConVar("xpm_default_infected_3", "1", "Sets the default infected for slot 3 when someone first logs in [1 = SMOKER, 2 = BOOMER, 3 = HUNTER, 4 = SPITTER, 5 = JOCKEY, 6 = CHARGER]", 0, true, 0.0, true, 6.0);
 	HookConVarChange(g_hCVar_DefaultInfecttedSlot3, CVarChange_DefaultInfectedSlot3);
 
+	// Rebindable ability commands. The hardcoded "xpmbind1"/"xpmbind2" commands (see
+	// SetupConsoleCommands in Setup.sp) always stay registered so existing player binds
+	// never break - these cvars only ADD an extra command name pointing at the same
+	// callback, e.g. for avoiding a collision with another plugin's command.
+	g_hCVar_Bind1Command = CreateConVar("sm_xpmod_bind1", "xpmbind1", "Extra client command that triggers Ability Bind 1, on top of the default 'xpmbind1' (which always stays active). Takes effect immediately, but requires a map change or plugin reload to move away from a previous non-default value.", FCVAR_NONE);
+	HookConVarChange(g_hCVar_Bind1Command, CVarChange_Bind1Command);
+
+	g_hCVar_Bind2Command = CreateConVar("sm_xpmod_bind2", "xpmbind2", "Extra client command that triggers Ability Bind 2, on top of the default 'xpmbind2' (which always stays active). Takes effect immediately, but requires a map change or plugin reload to move away from a previous non-default value.", FCVAR_NONE);
+	HookConVarChange(g_hCVar_Bind2Command, CVarChange_Bind2Command);
+
 	GetXPMConVarValues();
 	SetUpInitialConvarValues();
 }
@@ -195,4 +205,22 @@ void CVarChange_DefaultInfectedSlot3(Handle hCVar, const char[] strOldValue, con
 void OnPainPillsDecayChanged(Handle convar, const char[] oldValue, const char[] newValue)
 {
     flPainPillsDecay = StringToFloat(newValue);
+}
+
+//Callback function for adding an extra Bind 1 command name (see RegisterBindCommandAlias in Binds.sp)
+void CVarChange_Bind1Command(Handle hCVar, const char[] strOldValue, const char[] strNewValue)
+{
+	if(StrEqual(strOldValue, strNewValue) == true)
+		return;
+
+	RegisterBindCommandAlias(g_hCVar_Bind1Command, "xpmbind1", Bind1Press, 1);
+}
+
+//Callback function for adding an extra Bind 2 command name (see RegisterBindCommandAlias in Binds.sp)
+void CVarChange_Bind2Command(Handle hCVar, const char[] strOldValue, const char[] strNewValue)
+{
+	if(StrEqual(strOldValue, strNewValue) == true)
+		return;
+
+	RegisterBindCommandAlias(g_hCVar_Bind2Command, "xpmbind2", Bind2Press, 2);
 }
