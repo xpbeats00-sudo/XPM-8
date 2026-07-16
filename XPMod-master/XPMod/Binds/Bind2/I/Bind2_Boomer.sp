@@ -1,6 +1,10 @@
 void Bind2Press_Boomer(int iClient)
 {
-    if((g_iClientInfectedClass1[iClient] == BOOMER) || (g_iClientInfectedClass2[iClient] == BOOMER) || (g_iClientInfectedClass3[iClient] == BOOMER))
+    // Binds.sp only reaches this function when g_iInfectedCharacter[iClient] == BOOMER
+    // already - checking the separate "3 saved class slots" array here instead was
+    // redundant and desync-prone (see SyncInfectedClassSlotFromCurrent), and could wrongly
+    // show "You dont have the Boomer as one of your classes" instead of the real reason.
+    if(g_iInfectedCharacter[iClient] == BOOMER)
     {
         if(g_iNorovirusLevel[iClient] > 0)
         {

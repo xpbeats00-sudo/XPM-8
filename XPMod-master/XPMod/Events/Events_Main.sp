@@ -315,10 +315,31 @@ Action Event_RoundStart(Handle hEvent, const char[] strName, bool bDontBroadcast
 	g_bCanSave = true;
 	g_iRoundWinnerTeam = 0;
 	g_bSurvivorsCompletedMap = false;
-	
+
 	ResetAllVariablesForRound();
-	
+
+	// Fallback for all-bot survivor teams: SetupUnfreezeGameTimer normally only
+	// starts once OnPlayerRunCmd sees a client press a button, but survivor bots
+	// are held completely still by sb_stop 1 (ResetAllVariablesForRound) and never
+	// generate button input on their own - with zero human survivors, nothing was
+	// ever pressing that first button, so the round (and the bots) stayed frozen
+	// at spawn indefinitely. This guarantees it fires either way; the same
+	// g_bPlayerPressedButtonThisRound guard makes it a no-op once a real button
+	// press has already kicked off the timer.
+	CreateTimer(15.0, TimerFallbackUnfreeze, 0, TIMER_FLAG_NO_MAPCHANGE);
+
 	return Plugin_Continue;
+}
+
+Action TimerFallbackUnfreeze(Handle timer, int data)
+{
+	if (g_bEndOfRound == false && g_bPlayerPressedButtonThisRound == false)
+	{
+		g_bPlayerPressedButtonThisRound = true;
+		SetupUnfreezeGameTimer(20.0);
+	}
+
+	return Plugin_Stop;
 }
 
 Action Event_RoundEnd(Handle hEvent, const char[] strName, bool bDontBroadcast)
