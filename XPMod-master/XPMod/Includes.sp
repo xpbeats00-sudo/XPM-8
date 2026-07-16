@@ -6,6 +6,7 @@
 #include "XPMod/GlobalVariables/Models_Particles_Anims.sp"
 #include "XPMod/GlobalVariables/Offsets_Reload_SDKCalls.sp"
 #include "XPMod/GlobalVariables/Prestige_Icons.sp"
+#include "XPMod/GlobalVariables/Custom_Tags.sp"
 #include "XPMod/GlobalVariables/Sounds.sp"
 #include "XPMod/GlobalVariables/Survivors.sp"
 #include "XPMod/GlobalVariables/Talent_Levels.sp"
@@ -33,6 +34,7 @@
 #include "XPMod/Misc/Statistics_Panel.sp"
 #include "XPMod/Misc/Survivor_Functions.sp"
 #include "XPMod/Misc/SpawnInfected.sp"
+#include "XPMod/Misc/InfectedClassCap.sp"
 #include "XPMod/Misc/VictimHealthMeter.sp"
 #include "XPMod/Misc/DPS_Meter.sp"
 //Database Management

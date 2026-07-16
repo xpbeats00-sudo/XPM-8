@@ -9,7 +9,7 @@ Action AdminMenuDraw(int iClient)
 	SetMenuTitle(menu, "XPMod Admin Menu\n ");
 	AddMenuItem(menu, "option1", "Auto-Balance Teams   [NOT READY]");
 	AddMenuItem(menu, "option2", "Switch Player's Team");
-	AddMenuItem(menu, "option3", "Force Client Popup     [NOT READY]"); //Like Help, Addon Download, Confirm Talents, etc.
+	AddMenuItem(menu, "option3", "Dev: Max XP/Talents (Testing)");
 	AddMenuItem(menu, "option4", "Mute Player");
 	AddMenuItem(menu, "option5", "Kick Player");
 	AddMenuItem(menu, "option6", "Ban Player");
@@ -41,9 +41,9 @@ void AdminMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
 			{
 				SwitchPlayersTeamMenuDraw(iClient);
 			}
-			case 2: //Force Client Popup
+			case 2: //Dev: Max XP/Talents
 			{
-				PrintToChat(iClient, "This feature is not ready yet.");
+				GiveClientMaxXPForTesting(iClient);
 				AdminMenuDraw(iClient);
 			}
 			case 3: //Mute Player

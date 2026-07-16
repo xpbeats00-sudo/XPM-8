@@ -50,11 +50,16 @@ void RenamePlayerWithLevelTags(int iClient, bool bRemoveTags = false)
 	char strClientBaseName[32];
 	GetClientBaseName(iClient, strClientBaseName, sizeof(strClientBaseName));
 
+	char strCustomTag[16];
+	GetCustomTagText(g_iClientCustomTag[iClient], strCustomTag, sizeof(strCustomTag));
+
 	// The string [30] is 5 chars with the space. Max name length is 31.
 	// So check to make sure the name is not longer than 31 - 5 = 26
 	// before continuing.
 	// This has changed with Prestige Points, now its 31 - 9 = 22
-	if (strlen(strClientBaseName) > 22)
+	// A selected custom tag adds its own bracket ("[TAG]", 2 extra chars) on top of that.
+	int iTagBudget = (strCustomTag[0] != '\0') ? (strlen(strCustomTag) + 2) : 0;
+	if (strlen(strClientBaseName) + iTagBudget > 22)
 		return;
 
 
@@ -63,18 +68,29 @@ void RenamePlayerWithLevelTags(int iClient, bool bRemoveTags = false)
 	{
 		// Get the client level into a string and combine it into the final name
 		char strClientLevel[4];
+		char strBracket[24];
 		if (g_iClientPrestigePoints[iClient] == 0)
 		{
 			IntToString(g_iClientLevel[iClient], strClientLevel, sizeof(strClientLevel));
-			Format(strClientName, sizeof(strClientName), "[%s] %s", strClientLevel, strClientBaseName);
+			Format(strBracket, sizeof(strBracket), "[%s]", strClientLevel);
 		}
 		else
 		{
 			IntToString(g_iClientPrestigePoints[iClient], strClientLevel, sizeof(strClientLevel));
 			char strPrestigeSymbol[8];
 			GetPrestigeSymbol(g_iClientPrestigePoints[iClient], strPrestigeSymbol, sizeof(strPrestigeSymbol));
-			Format(strClientName, sizeof(strClientName), "[%s%s] %s", strPrestigeSymbol, strClientLevel, strClientBaseName);
+			Format(strBracket, sizeof(strBracket), "[%s%s]", strPrestigeSymbol, strClientLevel);
 		}
+
+		// Append the custom tag as its own bracket, e.g. "[30][VIP]", if one is selected
+		if (strCustomTag[0] != '\0')
+		{
+			char strTagBracket[20];
+			Format(strTagBracket, sizeof(strTagBracket), "[%s]", strCustomTag);
+			StrCat(strBracket, sizeof(strBracket), strTagBracket);
+		}
+
+		Format(strClientName, sizeof(strClientName), "%s %s", strBracket, strClientBaseName);
 	}
 	
 
@@ -185,6 +201,25 @@ Action GiveXPbyID(int iClient, int args)
 	CheckLevel(target);
 	
 	return Plugin_Handled;
+}
+
+// Testing shortcut for admins: jumps straight to max level so every talent (including
+// whichever governs Bind 2) is unlocked without grinding. Reuses the same XP -> level ->
+// skill point cascade GiveXP already relies on (calclvlandnextxp recomputes level from
+// scratch off total XP, so this correctly jumps every level at once rather than one at a
+// time) and AutoLevelUpSurvivor's own point distribution, which fills every talent line
+// in order - at level 30 all 6 lines are maxed, so this covers Bind 1 AND Bind 2 for
+// whichever character iClient currently has chosen, not just one hardcoded talent.
+void GiveClientMaxXPForTesting(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	g_iClientXP[iClient] = RoundToFloor(LEVEL_30 * XP_MULTIPLIER);
+	LevelUpPlayer(iClient);
+	CheckLevel(iClient);
+
+	PrintToChat(iClient, "\x03[XPMod] \x05[DEV] \x01Maxed out XP and Talents for testing.");
 }
 
 Action GiveXP(int iClient, int args)

@@ -259,7 +259,11 @@ Action ExtrasMenuDraw(int iClient)
 		AddMenuItem(menu, "option7", "Prestige");
 	else
 		AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
-	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	// Customize (name tag picker) unlocks at the same level as Prestige.
+	if (g_iClientLevel[iClient] >= 30)
+		AddMenuItem(menu, "option8", "Customize");
+	else
+		AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
 
 	char strFinalOptionText[150];
 	Format(strFinalOptionText, sizeof(strFinalOptionText), "Main Menu\
@@ -554,6 +558,13 @@ void ExtrasMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
 				else
 					ExtrasMenuDraw(iClient);
 			}
+			case 7: //Customize
+			{
+				if (g_iClientLevel[iClient] >= 30)
+					CustomizeMenuDraw(iClient);
+				else
+					ExtrasMenuDraw(iClient);
+			}
 			case 8: //Back
 			{
 				TopMenuDraw(iClient);
@@ -631,6 +642,97 @@ void PrestigeConfirmMenuHandler(Menu menu, MenuAction action, int iClient, int i
 			PrestigePlayer(iClient);
 		}
 		else //No / Cancel
+		{
+			ExtrasMenuDraw(iClient);
+		}
+	}
+}
+
+Action CustomizeMenuDraw(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+
+	Menu menu = CreateMenu(CustomizeMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	\n		Customize\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	\n \
+	\nPick a tag to show next\
+	\nto your name.\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 8);
+
+	// Up to 7 tags (options 1-7), option 8 clears the tag, option 9 is Back - same fixed
+	// 9-slot layout every other XPMod menu uses.
+	int iTagCount = sizeof(CUSTOM_TAGS);
+	for (int i = 0; i < 7; i++)
+	{
+		char strOptionName[10], strItemText[64];
+		Format(strOptionName, sizeof(strOptionName), "option%d", i + 1);
+		if (i < iTagCount)
+		{
+			if (g_iClientCustomTag[iClient] == i + 1)
+				Format(strItemText, sizeof(strItemText), "[%s] (current)", CUSTOM_TAGS[i]);
+			else
+				Format(strItemText, sizeof(strItemText), "[%s]", CUSTOM_TAGS[i]);
+			AddMenuItem(menu, strOptionName, strItemText);
+		}
+		else
+			AddMenuItem(menu, strOptionName, "", ITEMDRAW_NOTEXT);
+	}
+
+	if (g_iClientCustomTag[iClient] == 0)
+		AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	else
+		AddMenuItem(menu, "option8", "Remove Tag\n ");
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Back\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void CustomizeMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true || g_iClientLevel[iClient] < 30)
+			return;
+
+		if (itemNum >= 0 && itemNum < 7 && itemNum < sizeof(CUSTOM_TAGS))
+		{
+			g_iClientCustomTag[iClient] = itemNum + 1;
+			RenamePlayerWithLevelTags(iClient);
+			CustomizeMenuDraw(iClient);
+		}
+		else if (itemNum == 7) //Remove Tag
+		{
+			g_iClientCustomTag[iClient] = 0;
+			RenamePlayerWithLevelTags(iClient);
+			CustomizeMenuDraw(iClient);
+		}
+		else //Back
 		{
 			ExtrasMenuDraw(iClient);
 		}

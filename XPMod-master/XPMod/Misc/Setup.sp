@@ -13,6 +13,7 @@ void SetupConsoleCommands()
 	RegisterBindCommandAlias(g_hCVar_Bind1Command, "xpmbind1", Bind1Press, 1);
 	RegisterBindCommandAlias(g_hCVar_Bind2Command, "xpmbind2", Bind2Press, 2);
 	RegConsoleCmd("xpmbinduses", ShowBindsRemaining);	//Display the total number of bind1 and bind2 uses left
+	RegConsoleCmd("xpmreroll", Command_InfectedReroll, "Reroll your Special Infected class while still a ghost (max 2 of any class alive at once)");
 	RegConsoleCmd("buy", ShowUserLoadoutMenu);			// People always use this buy command from other servers, show them that they can buy equipment in xpmod
 	RegConsoleCmd("banme", QuickBan);
 	

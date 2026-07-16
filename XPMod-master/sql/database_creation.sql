@@ -38,6 +38,7 @@ CREATE TABLE users (
     option_display_xp BOOLEAN DEFAULT 0 NOT NULL,
     option_auto_confirm BOOLEAN DEFAULT 0 NOT NULL,
     prestige_points INT UNSIGNED DEFAULT 0 NOT NULL,
+    custom_tag_id TINYINT UNSIGNED DEFAULT 0 NOT NULL,
     push_update_from_db BOOLEAN DEFAULT 0 NOT NULL
 );
 

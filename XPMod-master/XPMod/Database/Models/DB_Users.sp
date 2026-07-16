@@ -17,9 +17,10 @@
 #define DB_COL_INDEX_USERS_OPTION_DISPLAY_XP     16
 #define DB_COL_INDEX_USERS_OPTION_AUTO_CONFIRM   17
 #define DB_COL_INDEX_PRESTIGE_POINTS             18
-#define DB_COL_INDEX_PUSH_UPDATE_FROM_DB         19
+#define DB_COL_INDEX_CUSTOM_TAG_ID               19
+#define DB_COL_INDEX_PUSH_UPDATE_FROM_DB         20
 
-char strUsersTableColumnNames[20][50] = {
+char strUsersTableColumnNames[21][50] = {
     "user_id",
     "user_name",
     "steam_id",
@@ -39,5 +40,6 @@ char strUsersTableColumnNames[20][50] = {
     "option_display_xp",
     "option_auto_confirm",
     "prestige_points",
+    "custom_tag_id",
     "push_update_from_db"
 };

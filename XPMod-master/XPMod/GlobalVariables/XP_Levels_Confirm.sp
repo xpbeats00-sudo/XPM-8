@@ -14,6 +14,7 @@ StringMap g_smInfectedPickSavedThisRound;
 int g_iClientXP[MAXPLAYERS + 1];
 int g_iClientLevel[MAXPLAYERS + 1];
 int g_iClientPrestigePoints[MAXPLAYERS + 1];
+int g_iClientCustomTag[MAXPLAYERS + 1];	// 0 = no tag selected, else 1-based index into CUSTOM_TAGS
 int g_iChosenSurvivor[MAXPLAYERS + 1];
 int g_iClientNextLevelXPAmount[MAXPLAYERS + 1];
 int g_iClientPreviousLevelXPAmount[MAXPLAYERS + 1];

@@ -194,6 +194,15 @@ void SQLGetUserDataCallback(Handle owner, Handle hQuery, const char[] error, Han
 		else
 			LogError("SQL Error getting Prestige Points string from query");
 
+		//Get Client's selected custom tag ID from the SQL database
+		iFieldIndex = DB_COL_INDEX_CUSTOM_TAG_ID - startFieldIndexOffset;
+		if(SQL_FetchString(hQuery, iFieldIndex, strData, sizeof(strData)) != 0)
+		{
+			g_iClientCustomTag[iClient] = StringToInt(strData);
+		}
+		else
+			LogError("SQL Error getting Custom Tag ID string from query");
+
 		// Reset Survivor Classes and Talent Levels
 		ResetSurvivorTalents(iClient);
 
@@ -546,6 +555,12 @@ void SaveUserDataInDatabase(int iClient)
 	Format(strQueryPart, sizeof(strQueryPart), "\
 		prestige_points = %i, ",
 		g_iClientPrestigePoints[iClient]);
+	StrCat(strQuery, sizeof(strQuery), strQueryPart);
+
+	// Selected custom tag
+	Format(strQueryPart, sizeof(strQueryPart), "\
+		custom_tag_id = %i, ",
+		g_iClientCustomTag[iClient]);
 	StrCat(strQuery, sizeof(strQuery), strQueryPart);
 
 	// Classes
