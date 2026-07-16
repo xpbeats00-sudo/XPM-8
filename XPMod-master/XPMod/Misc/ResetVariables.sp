@@ -4,6 +4,8 @@ void ResetAllVariablesForRound()
 	g_smSurvivorPickSavedThisRound.Clear();
 	g_smInfectedPickSavedThisRound.Clear();
 
+	g_bVersusRoundEndForced = false;
+
 	//Reset Variables
 	for (int i = 1; i <= MaxClients; i++)
 	{

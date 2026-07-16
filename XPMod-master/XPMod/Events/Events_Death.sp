@@ -81,6 +81,10 @@ Action Event_PlayerDeath(Handle hEvent, char[] Event_name, bool dontBroadcast)
 		SetClientSpeed(iAttacker);
 	}
 
+	// This death may have been the last standing survivor - see Events_Main.sp
+	if (g_iClientTeam[iVictim] == TEAM_SURVIVORS)
+		CheckForVersusSurvivorWipe();
+
 	return Plugin_Continue;
 }
 

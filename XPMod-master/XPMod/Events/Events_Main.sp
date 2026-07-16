@@ -343,6 +343,10 @@ Action Event_MapTransition(Handle hEvent, const char[] strName, bool bDontBroadc
 		g_iRoundWinnerTeam = TEAM_SURVIVORS;
 		FinalizeRoundAndSave();
 	}
+	else
+	{
+		ForceVersusRoundEndIfNeeded(true);
+	}
 
 	return Plugin_Continue;
 }
@@ -355,6 +359,10 @@ Action Event_FinaleVehicleLeaving(Handle hEvent, const char[] strName, bool bDon
 	{
 		g_iRoundWinnerTeam = TEAM_SURVIVORS;
 		FinalizeRoundAndSave();
+	}
+	else
+	{
+		ForceVersusRoundEndIfNeeded(true);
 	}
 
 	return Plugin_Continue;
@@ -369,8 +377,66 @@ Action Event_FinaleWin(Handle hEvent, const char[] strName, bool bDontBroadcast)
 		g_iRoundWinnerTeam = TEAM_SURVIVORS;
 		FinalizeRoundAndSave();
 	}
+	else
+	{
+		ForceVersusRoundEndIfNeeded(true);
+	}
 
 	return Plugin_Continue;
+}
+
+/**************************************************************************************************************************
+ *                                     Versus Round-End Workaround (8v8+ safety net)                                      *
+ **************************************************************************************************************************/
+
+// The native engine's Versus round-end/side-swap (survivors escape, or all survivors
+// are down/dead) was tuned for the vanilla 4-survivor team and does not reliably fire
+// once a team has more than that - the round can softlock instead of swapping sides or
+// changing map. left4dhooks' L4D_EndVersusModeRound lets us force it explicitly from
+// the two conditions we can already detect ourselves (map exit reached / full wipe).
+void ForceVersusRoundEndIfNeeded(bool bSurvivorsEscaped)
+{
+	if (g_iGameMode != GAMEMODE_VERSUS && g_iGameMode != GAMEMODE_VERSUS_SURVIVAL)
+		return;
+
+	if (g_bEndOfRound || g_bVersusRoundEndForced)
+		return;
+
+	g_bVersusRoundEndForced = true;
+
+	DebugLog(DEBUG_MODE_ERRORS, "[XPMod] Forcing Versus round end via left4dhooks (survivorsEscaped=%d) - native round-end did not fire on its own.", bSurvivorsEscaped);
+
+	L4D_EndVersusModeRound(bSurvivorsEscaped);
+}
+
+// Call after any event that can put the last standing survivor down (incap/death) -
+// see Event_PlayerIncap (Events_Survivors.sp) and Event_PlayerDeath (Events_Death.sp).
+void CheckForVersusSurvivorWipe()
+{
+	if (AreAllSurvivorsDownOrDead())
+		ForceVersusRoundEndIfNeeded(false);
+}
+
+// True only once at least one survivor is connected and every connected survivor is
+// either dead, incapacitated, or ledge-hanging - i.e. nobody is left who could still
+// revive a teammate. Mirrors the "downed" definition already used for other purposes,
+// e.g. the bWasDownedSurvivor check in HandleClientDisconnect (Client_Connect_Disconnect.sp).
+bool AreAllSurvivorsDownOrDead()
+{
+	bool bFoundSurvivor = false;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (RunClientChecks(i) == false || g_iClientTeam[i] != TEAM_SURVIVORS)
+			continue;
+
+		bFoundSurvivor = true;
+
+		if (IsPlayerAlive(i) && g_bIsClientDown[i] == false && clienthanging[i] == false)
+			return false;
+	}
+
+	return bFoundSurvivor;
 }
 
 void FinalizeRoundAndSave()

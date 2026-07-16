@@ -260,6 +260,12 @@ int g_iRoundCount;
 bool g_bEndOfRound = false;
 bool g_bPlayerLeftStartArea = false;
 
+// Native Versus round-end/side-swap detection (all survivors escaped, or all
+// survivors down/dead) appears unreliable once a team has more than the vanilla
+// 4 survivors - see CheckForVersusSurvivorWipe/Event_MapTransition in Events_Main.sp,
+// which force it via left4dhooks instead. Guards against forcing it more than once a round.
+bool g_bVersusRoundEndForced = false;
+
 //Player Switching Teams timer
 bool g_bPlayerInTeamChangeCoolDown[MAXPLAYERS + 1];
 bool g_bClientSpectating[MAXPLAYERS + 1] = {false, ...};

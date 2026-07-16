@@ -510,6 +510,9 @@ Action Event_PlayerIncap(Handle hEvent, char[] Event_name, bool dontBroadcast)
 		{
 			PrintHintText(iClient, "You have %i Self Revive%s.\nHOLD USE to revive yourself.", g_iSelfRevives[iClient], g_iSelfRevives[iClient] != 1 ? "s" : "");
 		}
+
+		// This incap may have put the last standing survivor down - see Events_Main.sp
+		CheckForVersusSurvivorWipe();
 	}
 	return Plugin_Continue;
 }

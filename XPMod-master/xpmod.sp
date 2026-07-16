@@ -38,6 +38,7 @@
 
 // Added custom includes
 #include <sha1>
+#include <left4dhooks>
 
 // XPMod Include Files
 #include "XPMod/Includes.sp"
