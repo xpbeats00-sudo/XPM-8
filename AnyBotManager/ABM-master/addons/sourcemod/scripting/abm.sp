@@ -41,7 +41,7 @@ ArrayList g_iQueue;
 #define menuArgs g_menuItems[client]     // Global argument tracking for the menu system
 #define menuArg0 g_menuItems[client][0]  // GetItem(1...)
 #define menuArg1 g_menuItems[client][1]  // GetItem(2...)
-g_menuItems[MAXPLAYERS + 1][2];
+int g_menuItems[MAXPLAYERS + 1][2];
 
 // menu tracking
 #define g_callBacks g_menuStack[client]
@@ -54,7 +54,7 @@ StringMap g_QRecord;  // changes to an individual STEAM_ID mapping
 StringMap g_QRtmp;    // temporary QRecord holder for checking records without changing the main
 StringMap g_Cvars;    // locked cvars end up here
 
-char g_InfectedNames[6][] = {"Boomer", "Smoker", "Hunter", "Spitter", "Jockey", "Charger"};
+char g_InfectedNames[6][8] = {"Boomer", "Smoker", "Hunter", "Spitter", "Jockey", "Charger"};
 char g_SurvivorNames[8][] = {"Nick", "Rochelle", "Coach", "Ellis", "Bill", "Zoey", "Francis", "Louis"};
 char g_SurvivorPaths[8][] = {
     "models/survivors/survivor_gambler.mdl",
@@ -98,6 +98,11 @@ bool g_AssistedSpawning = false;
 bool g_ADFreeze = true;
 bool g_AutoWave;
 int g_ADInterval;
+// In Versus, PlayerActivate() re-freezes the AD (via StartAD -> StopAD) every
+// time a replacement survivor bot activates, which kept re-triggering the
+// top-up loop in ADTimer below and made the team un-wipeable (round never
+// ended - see RoundStartHook, which clears this each new round).
+bool g_bVsToppedUpThisRound;
 
 ConVar g_cvVersion;                                         // abm_version
 ConVar g_cvLogLevel; int g_LogLevel;                        // abm_loglevel
@@ -292,7 +297,7 @@ public void OnPluginEnd() {
     }
 }
 
-public Action UserMessageHook(UserMsg MsgId, Handle hBitBuffer, const iPlayers[], int iNumPlayers, bool bReliable, bool bInit) {
+public Action UserMessageHook(UserMsg MsgId, Handle hBitBuffer, const int[] iPlayers, int iNumPlayers, bool bReliable, bool bInit) {
     Echo(2, "UserMessageHook: %d %d %d", iNumPlayers, bReliable, bInit);
     // thanks https://forums.alliedmods.net/showpost.php?p=914509&postcount=10
 
@@ -554,6 +559,7 @@ public void OnAllSpawnHook(Handle event, const char[] name, bool dontBroadcast) 
 
 public void RoundStartHook(Handle event, const char[] name, bool dontBroadcast) {
     Echo(2, "RoundStartHook: %s", name);
+    g_bVsToppedUpThisRound = false;
     StartAD();
 
     for (int i = 1; i <= MaxClients; i++) {
@@ -650,8 +656,22 @@ public Action ADTimer(Handle timer) {
             g_ADInterval = 0;
 
             if (g_MaxMates >= 4 || AllClientsLoadedIn()) {
-                while (CountTeamMates(2) < g_MinPlayers) {
-                    AddSurvivor();
+                if (!g_IsVs || !g_bVsToppedUpThisRound) {
+                    // AddSurvivor() returns false once the server is at its
+                    // client-count ceiling (GetClientCount >= MaxClients-1).
+                    // Ignoring that return value here means this loop never
+                    // terminates once that ceiling is hit - confirmed as the
+                    // cause of a "Script execution timed out" crash blaming
+                    // this exact loop. Bail out instead of spinning forever.
+                    while (CountTeamMates(2) < g_MinPlayers) {
+                        if (!AddSurvivor()) {
+                            break;
+                        }
+                    }
+
+                    if (g_IsVs) {
+                        g_bVsToppedUpThisRound = true;
+                    }
                 }
 
                 if (AllClientsLoadedIn() && StartAD(5.0)) {
@@ -976,7 +996,7 @@ void UpdateGameMode() {
 void SetVDOU(char[] val, any ...) {
     Echo(2, "SetVDOU");
 
-    static const char tmp[128] = "\
+    static const char tmp[256] = "\
         DominatorLimit=%s;\
         MaxSpecials=%s;\
         BoomerLimit=%s;\
@@ -1580,7 +1600,7 @@ public Action TankAssistTimer(Handle timer, any client) {
 
     float origin[3];
     static const float nullOrigin[3];
-    static times[MAXPLAYERS + 1] = {11, ...};
+    static int times[MAXPLAYERS + 1] = {11, ...};
     static float origins[MAXPLAYERS + 1][3];
     static int i;
 
@@ -1614,7 +1634,7 @@ public Action TankAssistTimer(Handle timer, any client) {
 public Action ForceSpawnTimer(Handle timer, any client) {
     Echo(4, "ForceSpawnTimer: %d", client);
 
-    static times[MAXPLAYERS + 1] = {20, ...};
+    static int times[MAXPLAYERS + 1] = {20, ...};
     static int i;
 
     if (IsClientValid(client)) {
@@ -2161,8 +2181,6 @@ public Action TakeoverTimer(Handle timer, any client) {
 }
 
 int CountTeamMates(int onteam, int mtype=2) {
-    Echo(2, "CountTeamMates: %d %d", onteam, mtype);
-
     // mtype 0: counts only bots
     // mtype 1: counts only humans
     // mtype 2: counts all players on team
