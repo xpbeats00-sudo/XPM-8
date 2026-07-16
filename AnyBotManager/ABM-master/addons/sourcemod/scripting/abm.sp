@@ -644,7 +644,13 @@ public Action ADTimer(Handle timer) {
 
     g_MaxMates = CountTeamMates(2);
 
-    if (g_MaxMates == 0) {
+    // Bail out early when there's truly nothing to do - EXCEPT while g_ADFreeze is set,
+    // since that's this function's own signal that it needs to top the team back up to
+    // g_MinPlayers (see the g_ADFreeze block below). The old unconditional "0 survivors ->
+    // do nothing" check meant that once the survivor team ever hit exactly zero (e.g. a
+    // full wipe with no one left to respawn as), this function would refuse to add any
+    // bots to recover - a permanent deadlock, since nothing else calls AddSurvivor().
+    if (g_MaxMates == 0 && !g_ADFreeze) {
         return Plugin_Continue;
     }
 
