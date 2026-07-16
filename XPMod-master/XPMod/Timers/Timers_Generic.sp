@@ -92,7 +92,57 @@ Action Timer2SecondGlobalRepeating(Handle timer, int data)
 	return Plugin_Continue;
 }
 
+// Director-spawned "bot" Special Infected (see AddInfected in AnyBotManager/abm.sp) are
+// pure server-side NPCs, not clients - they never occupy a player slot, so there's no
+// client for the native scoreboard to list them by. Real slotted SI bots would need new
+// binary SDK signatures XPMod doesn't have (NextBotCreatePlayerBot<Class> etc. - see the
+// community "InfectedBots" plugin), which is a much bigger, riskier change and overlaps
+// heavily with AnyBotManager's own bot-spawning. Scanning the actual SI entities in the
+// world instead and showing human Infected players which ones are bot-controlled gets the
+// same practical result (they can see their bot teammates) without any of that risk.
+static const char INFECTED_SI_CLASSNAMES[][] = { "smoker", "boomer", "hunter", "spitter", "jockey", "charger" };
+static const int INFECTED_SI_CLASSNAME_ENUM[] = { SMOKER, BOOMER, HUNTER, SPITTER, JOCKEY, CHARGER };
 
+Action TimerShowBotInfectedSI(Handle timer, int data)
+{
+	char strBotList[192];
+	int iBotCount = 0;
+
+	for (int c = 0; c < sizeof(INFECTED_SI_CLASSNAMES); c++)
+	{
+		int entity = -1;
+		while ((entity = FindEntityByClassname(entity, INFECTED_SI_CLASSNAMES[c])) != -1)
+		{
+			// Entity indexes 1..MaxClients belong to clients (human, or a bot someone took
+			// over) - anything above that has no owning client at all, i.e. a Director NPC.
+			if (entity <= MaxClients || IsValidEntity(entity) == false)
+				continue;
+
+			if (GetEntProp(entity, Prop_Send, "m_iHealth") <= 0)
+				continue;
+
+			iBotCount++;
+			if (strlen(strBotList) > 0)
+				StrCat(strBotList, sizeof(strBotList), ", ");
+			StrCat(strBotList, sizeof(strBotList), INFECTED_NAME[INFECTED_SI_CLASSNAME_ENUM[c]]);
+		}
+	}
+
+	if (iBotCount == 0)
+		return Plugin_Continue;
+
+	for (int iClient = 1; iClient <= MaxClients; iClient++)
+	{
+		if (RunClientChecks(iClient) == false ||
+			IsFakeClient(iClient) == true ||
+			g_iClientTeam[iClient] != TEAM_INFECTED)
+			continue;
+
+		PrintHintText(iClient, "Bot Special Infected active (%d): %s", iBotCount, strBotList);
+	}
+
+	return Plugin_Continue;
+}
 
 Action Timer_ResetGlow(Handle timer, int iClient)
 {
