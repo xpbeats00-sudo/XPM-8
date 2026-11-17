@@ -1,0 +1,374 @@
+//Jockey Menu
+
+//Jockey Menu Draw
+Action JockeyTopMenuDraw(int iClient) 
+{
+
+	Menu menu = CreateMenu(JockeyTopMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strXP[32];
+	FormatXPDisplay(iClient, strXP, sizeof(strXP));
+	FormatEx(text, sizeof(text), "%sLevel %d	XP: %s\n==========================\nJockey Talents:\n==========================\n \nMutated Tenacity: Level %d\nErratic Domination: Level %d\nUnfair Advantage: Level %d\n \n", strStartingNewLines, g_iClientLevel[iClient], strXP, g_iMutatedLevel[iClient], g_iErraticLevel[iClient], g_iUnfairLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 4+3);
+	AddMenuItem(menu, "option1", "Mutated Tenacity");
+	AddMenuItem(menu, "option2", "Erratic Domination");
+	AddMenuItem(menu, "option3", "Unfair Advantage\n ");
+	
+	AddMenuItem(menu, "option4", "Choose The Jockey\n ");
+	
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n==========================\
+		%s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Talent Draws///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Mutated Tenacity Menu Draw
+Action MutatedMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(MutatedMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%s  				Mutated Tenacity (Level %d)\
+		\n \
+		\n+1 melee damage every 3 levels\
+		\n+5%% lunge distance per level\
+		\n-0.35 seconds from all lunge cooldowns per level\
+		\n \
+		\n			  Tweakers Twitch\
+		\n				  5 charges\
+		\n \
+		\nShort burst twitch (WALK + move direction)\
+		\nShorter distance while riding (Limited to 2 twitches)\
+		\nTwitches recharge at the half the rate while riding\
+		\n ",
+		strStartingNewLines,
+		g_iMutatedLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Erratic Domination Menu Draw
+Action ErraticMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(ErraticMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%s						Erratic Domination (Level %d)\
+		\n \
+		\n+1 Ride Dmg Every 3 Levels\
+		\n+3%% Ride Speed per Level\
+		\n \
+		\n Drag Race:\
+		\n	Drag Victims for Tiered Rewards\
+		\n	Tier 1: 50 Ft.\
+		\n	Tier 2: 100 Ft.\
+		\n	Tier 3: 150 Ft.\
+		\n \n \
+		\nBind 1: Golden Shower (3 Uses)\
+		\n \
+		\nWhile Riding, Pee on Victim to Attract Infected\
+		\nDisables Survivor Cloaking\
+		\nAll Nearby CI Are Upgraded to BIG Enhanced CEDA Workers\
+		\n \
+		\nLevel 10:\
+		\nSummon A Horde\
+		\n ",
+		strStartingNewLines,
+		g_iErraticLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Unfair Advantage Menu Draw
+Action UnfairMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(UnfairMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%s	Unfair Advantage (Level %d)\
+		\n \
+		\n+45 max health per level\
+		\n+7%% movement speed per level\
+		\n \
+		\n \
+		\n		Bind 2: Vanishing Act\
+		\n	3 uses; 10 second duration\
+		\n \
+		\n+9%% cloaking per level\
+		\nDisable Jockey & survivor glow\
+		\n+5%% riding speed per level\
+		\nJumping Enabled (+50 height per level)\
+		\n ",
+		strStartingNewLines,
+		g_iUnfairLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Choose Jockey Menu Draw
+Action ChooseJockeyClassMenuDraw(int iClient) 
+{
+
+	
+	Menu menu = CreateMenu(ChooseJockeyClassMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+	
+	char title[256];
+	FormatEx(title, sizeof(title), "==========================\n		Current Classes\n \nClass 1)	%s\nClass 2)	%s\nClass 3)	%s\n==========================\n \nPick a class to replace with the Jockey:",g_strClientInfectedClass1[iClient], g_strClientInfectedClass2[iClient], g_strClientInfectedClass3[iClient]);
+	SetMenuTitle(menu, "%s", title);
+	AddMenuItem(menu, "option1", "Replace Class 1");
+	AddMenuItem(menu, "option2", "Replace Class 2");
+	AddMenuItem(menu, "option3", "Replace Class 3");
+	AddMenuItem(menu, "option9", "Back");
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	return Plugin_Handled;
+}
+
+//Handlers/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Jockey Top Menu Handler
+void JockeyTopMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Predatorial Evolution
+			{
+				MutatedMenuDraw(iClient);
+			}
+			case 1: //Blood Lust
+			{
+				ErraticMenuDraw(iClient);
+			}
+			case 2: //Kill-meleon
+			{
+				UnfairMenuDraw(iClient);
+			}
+			case 3: //Select This Class
+			{
+				if((g_iClientInfectedClass1[iClient] != JOCKEY) && (g_iClientInfectedClass2[iClient] != JOCKEY) && (g_iClientInfectedClass3[iClient] != JOCKEY))
+				{
+					if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED || g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED || g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+						ChooseJockeyClassMenuDraw(iClient);
+					else
+					{
+						PrintToChat(iClient, "\x03[XPMod] \x05You cannot change your characters if your talents are confirmed for this round.");
+						JockeyTopMenuDraw(iClient);
+					}
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You already have the \x04jockey\x05 as one of your classes.");
+					JockeyTopMenuDraw(iClient);
+				}
+			}
+			case 8: //Back
+			{
+				TopInfectedMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Mutated Tenacity Menu Handler
+void MutatedMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				JockeyTopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Erratic Domination Menu Handler
+void ErraticMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				JockeyTopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Unfair Advantage Menu Handler
+void UnfairMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				JockeyTopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Choose Jockey Top Menu Handler
+void ChooseJockeyClassMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Replace Class 1
+			{
+				if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass1[iClient]);
+					SetInfectedClassSlot(iClient, 1, JOCKEY);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 1\x05 with the \x04Jockey\x05.");
+					JockeyTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 1\x05 because it has already been confirmed.");
+					ChooseJockeyClassMenuDraw(iClient);
+				}
+			}
+			case 1: //Replace Class 2
+			{
+				if(g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass2[iClient]);
+					SetInfectedClassSlot(iClient, 2, JOCKEY);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 2\x05 with the \x04Jockey\x05.");
+					JockeyTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 2\x05 because it has already been confirmed.");
+					ChooseJockeyClassMenuDraw(iClient);
+				}
+			}
+			case 2: //Replace Class 3
+			{
+				if(g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass3[iClient]);
+					SetInfectedClassSlot(iClient, 3, JOCKEY);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 3\x05 with the \x04Jockey\x05.");
+					JockeyTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 3\x05 because it has already been confirmed.");
+					ChooseJockeyClassMenuDraw(iClient);
+				}
+			}
+			default: //Back
+			{
+				JockeyTopMenuDraw(iClient);
+			}
+		}
+	}
+}

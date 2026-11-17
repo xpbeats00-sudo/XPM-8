@@ -1,0 +1,954 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////           GAME EVENTS           /////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+/**************************************************************************************************************************
+ *                                                 Hook All Game Events                                                   *
+ **************************************************************************************************************************/
+
+void SetupXPMEvents()
+{
+	//AddTempEntHook("PlayerAnimEvent", OnPlayerAnimEvent);
+
+	//native void HookUserMessage(UserMsg msg_id, MsgHook hook, bool intercept=false, MsgPostHook post=INVALID_FUNCTION);
+	//Hook user messages for silent renames for level tags
+	HookUserMessage(GetUserMessageId("SayText2"), Hook_SayText2, true);
+
+	//Map Events
+	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_Pre);
+	HookEvent("map_transition", Event_MapTransition, EventHookMode_Pre);
+	HookEvent("finale_vehicle_leaving", Event_FinaleVehicleLeaving, EventHookMode_Pre);
+	HookEvent("finale_win", Event_FinaleWin, EventHookMode_Pre);
+
+	//Command Listeners
+	//Pause Game
+	AddCommandListener(CommandListener_Pause,	"pause");
+	AddCommandListener(CommandListener_Setpause,"setpause");
+	AddCommandListener(CommandListener_Unpause,	"unpause");
+	//Vote Preventions
+	AddCommandListener(CommandListener_CallVote, "callvote");
+
+	//Misc Events
+	HookEvent("player_left_start_area", Event_PlayerLeftStartArea);
+	HookEvent("survival_round_start", Event_SurvivalRoundStart);
+	
+	//Player Events
+	HookEvent("player_changename", Event_PlayerChangeName);
+	HookEvent("player_connect_full", Event_PlayerConnect);
+	HookEvent("player_disconnect", Event_PlayerDisconnect);
+	HookEvent("player_team", Event_PlayerChangeTeam);
+	AddCommandListener(CommandListener_JoinTeam, "jointeam"); // Specifically for interrupting M button
+	HookEvent("player_bot_replace", Event_PlayerReplacedByBot);
+	HookEvent("bot_player_replace", Event_BotReplacedByPlayer);
+	HookEvent("survivor_rescued", Event_SurvivorRescued);
+	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("player_death", Event_PlayerDeath);
+	HookEvent("player_hurt", Event_PlayerHurt);
+	HookEvent("player_incapacitated", Event_PlayerIncap);
+	HookEvent("player_jump", Event_PlayerJump);
+	HookEvent("player_use", Event_PlayerUse);
+	HookEvent("friendly_fire", Event_FriendlyFire);
+	HookEvent("player_shoved", Event_PlayerShoved);
+
+	//Survivor Events
+	HookEvent("weapon_fire", Event_WeaponFire);
+	HookEvent("weapon_reload", Event_WeaponReload);
+	HookEvent("heal_begin", Event_HealBegin);
+	HookEvent("heal_end", Event_HealEnd);
+	HookEvent("heal_interrupted", Event_HealEnd);
+	HookEvent("heal_success", Event_HealSuccess);
+	HookEvent("player_ledge_grab", Event_LedgeGrab);
+	HookEvent("revive_begin", Event_ReviveBegin);
+	HookEvent("revive_end", Event_ReviveEnd);
+	HookEvent("revive_success", Event_ReviveSuccess);
+	HookEvent("defibrillator_used", Event_DefibUsed);
+	HookEvent("weapon_fire", Event_WeaponFire);
+	HookEvent("pills_used", Event_PillsUsed);
+	HookEvent("adrenaline_used", Event_AdrenalineUsed);
+	HookEvent("item_pickup", Event_ItemPickUp);
+	HookEvent("weapon_given", Event_WeaponGiven);
+	HookEvent("upgrade_pack_used", Event_UpgradePackUsed);
+	HookEvent("weapon_drop", Event_WeaponDropped);
+	HookEvent("weapon_pickup", Event_WeaponPickUp);
+	HookEvent("spawner_give_item", Event_SpawnerGiveItem);
+	HookEvent("use_target", Event_UseTarget);
+	HookEvent("receive_upgrade", Event_ReceiveUpgrade);
+	
+	//Infected Events
+	HookEvent("infected_decapitated", Event_InfectedDecap);
+	HookEvent("infected_hurt", Event_InfectedHurt);
+	HookEvent("tank_spawn", Event_TankSpawn);
+	HookEvent("tank_frustrated", Event_TankFrustrated);
+	HookEvent("witch_spawn", Event_WitchSpawn);
+	HookEvent("witch_killed", Event_WitchKilled);
+	HookEvent("zombie_ignited", Event_ZombieIgnited);
+	HookEvent("jockey_ride", Event_JockeyRide);
+	HookEvent("tongue_grab", Event_TongueGrab);
+	HookEvent("tongue_release", Event_TongueRelease);
+	HookEvent("choke_start", Event_ChokeStart);
+	// HookEvent("choke_end", Event_ChokeEnd);
+	HookEvent("jockey_ride_end", Event_JockeyRideEnd);
+	HookEvent("lunge_pounce", Event_HunterPounceStart);
+	HookEvent("pounce_end", Event_HunterPounceStopped);
+	HookEvent("charger_charge_start", Event_ChargerChargeStart);
+	HookEvent("charger_charge_end", Event_ChargerChargeEnd);
+	HookEvent("charger_impact", Event_ChargerImpact);
+	HookEvent("charger_carry_start", Event_ChargerCarryStart);
+	HookEvent("charger_carry_end", Event_ChargerCarryEnd);
+	HookEvent("charger_pummel_start", Event_ChargerPummelStart);
+	HookEvent("charger_pummel_end", Event_ChargerPummelEnd);
+	HookEvent("charger_killed", Event_ChargerKilled);
+	HookEvent("ability_use", Event_AbilityUse);
+	HookEvent("spit_burst", Event_SpitBurst);
+	HookEvent("player_now_it", Event_PlayerNowIt);
+	HookEvent("player_no_longer_it", Event_PlayerNoLongerIt);
+	//HookEvent("ghost_spawn_time", Event_GhostSpawnTime);
+	//HookEvent("entered_spit", Event_EnteredSpit);	
+}
+
+/**************************************************************************************************************************
+ *                                                    Events Functions                                                    *
+ **************************************************************************************************************************/
+
+//Chat
+Action SayCmd(int iClient, int args)
+{
+	if (iClient < 1 || IsClientInGame(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Continue;
+	
+	//Check to see if they typed in xpm or xpmod, indifferent to the case used
+	char strArgument1[16];
+	GetCmdArg(1, strArgument1, sizeof(strArgument1));
+	if(StrEqual(strArgument1, "xpm", false) == true || StrEqual(strArgument1, "!xpm", false) == true ||
+		StrEqual(strArgument1, "xpmod", false) == true || StrEqual(strArgument1, "!xpmod", false) == true)
+		{
+			XPModMenuDraw(iClient);
+		}
+	
+	if(StrEqual(strArgument1, "/xpm", false) == true)
+	{
+		XPModMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+
+	if(StrEqual(strArgument1, "banme", false) == true || StrEqual(strArgument1, "!banme", false) == true || StrEqual(strArgument1, "/banme", false) == true)
+	{
+		BanMeMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+
+	// Chat fallback for Ability Bind 1/2 (!skill1, !skill2) - see ChatBindFallback in Binds.sp
+	if(ChatBindFallback(iClient, strArgument1) == true)
+		return Plugin_Handled;
+
+
+	//Change the color of the admin text in the chat to green
+	if(GetUserAdmin(iClient) != INVALID_ADMIN_ID)
+	{
+		char input[256];
+		
+		GetCmdArgString(input, sizeof(input));
+		if(input[0] ==  '/' || input[1] ==  '/')
+			return Plugin_Handled;
+			
+		if(input[0] ==  '"')
+			input[0] = ' ';
+		if(input[strlen(input) - 1] == '"')
+			input[strlen(input) - 1] = '\0';
+		
+		PrintToChatAll("\x03%N\x01 : %s", iClient, input);
+		PrintToServer("[Admin] %N : %s", iClient, input);
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+Action SayTeamCmd(int iClient, int args)
+{
+	if (iClient < 1 || IsClientInGame(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Continue;
+	
+	char input[256];
+	GetCmdArgString(input,sizeof(input));
+
+	char strArgument1[16];
+	GetCmdArg(1, strArgument1, sizeof(strArgument1));
+	if(StrEqual(strArgument1, "xpm", false) == true || StrEqual(strArgument1, "!xpm", false) == true ||
+		StrEqual(strArgument1, "xpmod", false) == true || StrEqual(strArgument1, "!xpmod", false) == true)
+		XPModMenuDraw(iClient);
+		
+	if(StrEqual(strArgument1, "/xpm", false) == true)
+	{
+		XPModMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+
+	if(StrEqual(strArgument1, "banme", false) == true || StrEqual(strArgument1, "!banme", false) == true || StrEqual(strArgument1, "/banme", false) == true)
+	{
+		BanMeMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+
+	// Chat fallback for Ability Bind 1/2 (!skill1, !skill2) - see ChatBindFallback in Binds.sp
+	if(ChatBindFallback(iClient, strArgument1) == true)
+		return Plugin_Handled;
+
+	int i;
+	for(i = 1; i <= MaxClients; i++)
+	{
+		if(g_iGatherLevel[i] == 5 && IsClientInGame(i) && IsFakeClient(i) == false && GetClientTeam(i)==TEAM_SURVIVORS && GetClientTeam(iClient)==TEAM_INFECTED)
+		{
+			char clientname[25];
+			GetClientName(iClient, clientname, sizeof(clientname));
+			PrintToChat(i, "\x04[\x05IDD Survalence\x04] \x05%s\x04: \x01%s", clientname, input);
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+Action Event_PlayerChangeName(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Continue;
+
+	if (g_bHideNameChangeMessage == false)
+		GetEventString(hEvent, "newname", g_strClientBaseName[iClient], sizeof(g_strClientBaseName[]));
+
+	if (g_bHideNameChangeMessage == false)
+		KickClient(iClient, "You cannot change your name on XPMod servers");
+
+	return Plugin_Continue;
+}
+
+// This is purely to block the name change message when updating a name to have the XPMod Level tags
+// Originally from https://forums.alliedmods.net/showthread.php?t=302085
+Action Hook_SayText2(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+{
+	// Continue as usual if we arent hiding the name change messages currently
+	if(g_bHideNameChangeMessage == false)
+		return Plugin_Continue;
+
+	// Get the message that will be checked if its the name change string
+	char sMessage[24];
+	msg.ReadByte();
+	msg.ReadByte();
+	msg.ReadString(sMessage, 24, false);
+
+	// If we have a name change, then prevent the message from being seen
+	if(StrEqual(sMessage, NAME_CHANGE_STRING))
+		return Plugin_Handled;
+
+	// Otherwise, move on and continue displaying the message
+	return Plugin_Continue;
+}
+
+
+public void OnMapStart()
+{
+	
+	//Get current map name
+	GetCurrentMap(g_strCurrentMap,32);
+
+	GetXPMConVarValues();
+
+	SQLGetTopXPModPlayerStatistics();
+	SQLGetTopPlayerLeaderboard();
+
+	// Increase the uncommon limit for the NecroTanker and Spitter conjurer abilities
+	// Also, more is better...
+	SetConVarInt(FindConVar("z_common_limit"), 45);
+	//SetConVarInt(FindConVar("z_background_limit"), 45);		// Not required
+
+	// This can be set so that the survivor bots dont teleport if they are entangled
+	//SetConVarInt(FindConVar("sb_enforce_proximity_range"), CONVAR_SB_ENFORCE_PROXIMITY_RANGE_DEFAULT);
+	
+	// Increases the spawn distance
+	// Commented out to ensure that zombies spawn closer to the action
+	//SetConVarInt(FindConVar("z_spawn_range"), 2500);	//Required or common will disappear when spawned out of range of NecroTanker
+	//SetConVarInt(FindConVar("z_discard_range"), 3000); 	//Required or common will disappear when spawned out of range of NecroTanker
+	
+	// Set the filename for the log to the server name
+	for (int i = 0; i < sizeof(g_strServerName); i++)
+		g_strServerName[i] = '\0';
+	GetConVarString(FindConVar("hostname"), g_strServerName, sizeof(g_strServerName));
+	// Guard against any edge-case truncated copy that may miss a terminator.
+	g_strServerName[sizeof(g_strServerName) - 1] = '\0';
+	// Remove the spaces if there are any, this is helpful when accessing in Linux
+	ReplaceString(g_strServerName, sizeof(g_strServerName), " ", "_");
+	// Get the log file name
+	SetXPMStatsLogFileName();
+
+	g_iRoundCount = 1;
+
+	DispatchKeyValue(0, "timeofday", "1"); //Set time of day to midnight
+	
+	//Set the g_iGameMode variable
+	FindGameMode();
+	
+	//Precache everything needed for XPMod
+	PrecacheAllTextures();	
+	PrecacheAllModels();
+	PrecacheAllParticles();
+	PrecacheAllSounds();
+	
+	//Set the max teleport height for the map
+	//SetMapsMaxTeleportHeight();
+}
+
+Action Event_RoundStart(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	g_bGameFrozen = true;
+	g_bPlayerPressedButtonThisRound = false;
+	g_bPlayerLeftStartArea = false;
+	
+	//g_bRoundStarted = true;
+	g_iRoundCount++;
+	g_bEndOfRound = false;
+	g_bCanSave = true;
+	g_iRoundWinnerTeam = 0;
+	g_bSurvivorsCompletedMap = false;
+
+	ResetAllVariablesForRound();
+
+	// Fallback for all-bot survivor teams: SetupUnfreezeGameTimer normally only
+	// starts once OnPlayerRunCmd sees a client press a button, but survivor bots
+	// are held completely still by sb_stop 1 (ResetAllVariablesForRound) and never
+	// generate button input on their own - with zero human survivors, nothing was
+	// ever pressing that first button, so the round (and the bots) stayed frozen
+	// at spawn indefinitely. This guarantees it fires either way; the same
+	// g_bPlayerPressedButtonThisRound guard makes it a no-op once a real button
+	// press has already kicked off the timer.
+	CreateTimer(15.0, TimerFallbackUnfreeze, 0, TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
+}
+
+Action TimerFallbackUnfreeze(Handle timer, int data)
+{
+	if (g_bEndOfRound == false && g_bPlayerPressedButtonThisRound == false)
+	{
+		g_bPlayerPressedButtonThisRound = true;
+		SetupUnfreezeGameTimer(20.0);
+	}
+
+	return Plugin_Stop;
+}
+
+Action Event_RoundEnd(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	// In L4D2, the round_end "winner" field is unreliable (often 0).
+	// Determine winner based on whether survivors completed the map.
+	if (g_bSurvivorsCompletedMap)
+		g_iRoundWinnerTeam = TEAM_SURVIVORS;
+	else
+		g_iRoundWinnerTeam = TEAM_INFECTED;
+
+	FinalizeRoundAndSave();
+	return Plugin_Continue;
+}
+
+Action Event_MapTransition(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	g_bSurvivorsCompletedMap = true;
+
+	if (g_iGameMode == GAMEMODE_COOP)
+	{
+		g_iRoundWinnerTeam = TEAM_SURVIVORS;
+		FinalizeRoundAndSave();
+	}
+	else
+	{
+		ForceVersusRoundEndIfNeeded(true);
+	}
+
+	return Plugin_Continue;
+}
+
+Action Event_FinaleVehicleLeaving(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	g_bSurvivorsCompletedMap = true;
+
+	if (g_iGameMode == GAMEMODE_COOP)
+	{
+		g_iRoundWinnerTeam = TEAM_SURVIVORS;
+		FinalizeRoundAndSave();
+	}
+	else
+	{
+		ForceVersusRoundEndIfNeeded(true);
+	}
+
+	return Plugin_Continue;
+}
+
+Action Event_FinaleWin(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	g_bSurvivorsCompletedMap = true;
+
+	if (g_iGameMode == GAMEMODE_COOP)
+	{
+		g_iRoundWinnerTeam = TEAM_SURVIVORS;
+		FinalizeRoundAndSave();
+	}
+	else
+	{
+		ForceVersusRoundEndIfNeeded(true);
+	}
+
+	return Plugin_Continue;
+}
+
+/**************************************************************************************************************************
+ *                                     Versus Round-End Workaround (8v8+ safety net)                                      *
+ **************************************************************************************************************************/
+
+// The native engine's Versus round-end/side-swap (survivors escape, or all survivors
+// are down/dead) was tuned for the vanilla 4-survivor team and does not reliably fire
+// once a team has more than that - the round can softlock instead of swapping sides or
+// changing map. left4dhooks' L4D_EndVersusModeRound lets us force it explicitly from
+// the two conditions we can already detect ourselves (map exit reached / full wipe).
+void ForceVersusRoundEndIfNeeded(bool bSurvivorsEscaped)
+{
+	if (g_iGameMode != GAMEMODE_VERSUS && g_iGameMode != GAMEMODE_VERSUS_SURVIVAL)
+		return;
+
+	if (g_bEndOfRound || g_bVersusRoundEndForced)
+		return;
+
+	g_bVersusRoundEndForced = true;
+
+	DebugLog(DEBUG_MODE_ERRORS, "[XPMod] Forcing Versus round end via left4dhooks (survivorsEscaped=%d) - native round-end did not fire on its own.", bSurvivorsEscaped);
+
+	L4D_EndVersusModeRound(bSurvivorsEscaped);
+}
+
+// Call after any event that can put the last standing survivor down (incap/death) -
+// see Event_PlayerIncap (Events_Survivors.sp) and Event_PlayerDeath (Events_Death.sp).
+void CheckForVersusSurvivorWipe()
+{
+	if (AreAllSurvivorsDownOrDead())
+		ForceVersusRoundEndIfNeeded(false);
+}
+
+// True only once at least one survivor is connected and every connected survivor is
+// either dead, incapacitated, or ledge-hanging - i.e. nobody is left who could still
+// revive a teammate. Mirrors the "downed" definition already used for other purposes,
+// e.g. the bWasDownedSurvivor check in HandleClientDisconnect (Client_Connect_Disconnect.sp).
+bool AreAllSurvivorsDownOrDead()
+{
+	bool bFoundSurvivor = false;
+
+	// Read team / incap / ledge state from the engine, not the cached
+	// g_iClientTeam / g_bIsClientDown / clienthanging flags - those go stale when
+	// bots and humans swap slots, which ended rounds early or never on a real wipe.
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (RunClientChecks(i) == false || GetClientTeam(i) != TEAM_SURVIVORS)
+			continue;
+
+		bFoundSurvivor = true;
+
+		if (IsPlayerAlive(i) &&
+			GetEntProp(i, Prop_Send, "m_isIncapacitated") == 0 &&
+			GetEntProp(i, Prop_Send, "m_isHangingFromLedge") == 0)
+			return false;
+	}
+
+	return bFoundSurvivor;
+}
+
+void FinalizeRoundAndSave()
+{
+	g_bGameFrozen = true;
+	//g_bRoundStarted = false;
+	g_bEndOfRound = true;
+	g_bPlayerPressedButtonThisRound = false;
+
+	// Stop recording and kicking AFK PLayers until someone moves next round
+	LoopThroughAllPlayersAndSetAFKRecordingTime(true);
+	
+	if(g_bCanSave == true)	//To prevent more than one run at the end of the round
+	{		
+		//Reset Rewards
+		g_iReward_SIKills = 0;
+		g_iReward_CIKills = 0;
+		g_iReward_HS = 0;
+		g_iReward_SurKills = 0;
+		g_iReward_SurIncaps = 0;
+		g_iReward_SurDmg = 0;
+		
+		GiveRewards();
+		StoreLastRoundClientsStats();
+		
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			//Save their game
+			if (IsClientInGame(i) == true &&
+				IsFakeClient(i) == false &&
+				g_bClientLoggedIn[i] == true)
+			{
+				SaveRoundStats(i);
+				SaveUserData(i);
+			}
+		}
+
+		// Remove the player level tags until the next confirmation
+		for (int iClient = 1; iClient <= MaxClients; iClient++)
+			RenamePlayerWithLevelTags(iClient, true);
+	}
+	
+	g_bCanSave = false;
+
+	// Close any open menus so they don't carry over to the next round
+	for (int iClient = 1; iClient <= MaxClients; iClient++)
+		ClosePanel(iClient);
+}
+
+public Action CommandListener_Pause(int client, const char[] command, int argc) {
+	return Plugin_Handled; 
+}
+
+public Action CommandListener_Setpause(int client, const char[] command, int argc) {
+	if (g_bGamePaused)
+		return Plugin_Continue;
+	
+	return Plugin_Handled;
+}
+
+public Action CommandListener_Unpause(int client, const char[] command, int argc) {
+	if (g_bGamePaused == false)
+		return Plugin_Continue;
+	
+	return Plugin_Handled;
+}
+
+public Action CommandListener_CallVote(int iVoteCaller, const char[] strCommand, int argc)
+{
+	char strVoteType[32], strVoteTarget[32];
+	GetCmdArg(1, strVoteType, sizeof(strVoteType));
+	GetCmdArg(2, strVoteTarget, sizeof(strVoteTarget));
+	int iTarget = GetClientOfUserId(StringToInt(strVoteTarget));
+
+	// Check each of the vote types and return plugin handled if it should be prevented
+	if (HandleCallVote_Kick(iVoteCaller, iTarget, strVoteType)) return Plugin_Handled;
+
+	// Nothing has prevented the vote so allow it
+	return Plugin_Continue;
+}
+
+bool HandleCallVote_Kick(int iVoteCaller, int iTarget, char[] strVoteType)
+{
+	// Ensure its a kick vote before continuing
+	if (StrEqual(strVoteType, "kick", false) == false)
+		return false;
+
+	// Check client level if they are under threshold allow the vote
+	if (g_iClientXP[iTarget] < VOTE_KICK_IMMUNITY_XP_THRESHOLD)
+		return false;
+
+	// They also need to not be AFK, or the vote will be allowed
+	float fAFKTime = GetGameTime() - g_fLastPlayerLastButtonPressTime[iTarget];
+	if (fAFKTime >= AFK_IDLE_PLAYER_KICK_WARNING_START_TIME)
+		return false;
+
+	PrintToChat(iVoteCaller, "\x03[XPMod] \x05Player is immune to vote kicking.\n    You can report players at xpmod.net/discord.");
+	
+	// Interrupt the vote
+	return true;
+}
+
+void Event_PlayerJump(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent,"userid"));
+
+	if (RunClientChecks(iClient) == false || 
+		g_bTalentsConfirmed[iClient] == false ||
+		GetEntData(iClient, g_iOffset_IsGhost, 1) == 1 ||
+		IsFakeClient(iClient) == true)
+		return;
+	
+	if(g_iClientTeam[iClient] == TEAM_INFECTED)
+	{
+		if(g_iInfectedCharacter[iClient] == JOCKEY)
+		{
+			if(g_iMutatedLevel[iClient] > 0)
+			{
+				CreateTimer(0.1, TimerJumpFurther, iClient, TIMER_FLAG_NO_MAPCHANGE);
+			}
+		}
+		else if(g_iInfectedCharacter[iClient] == BOOMER)
+		{
+			if(g_bIsSuicideBoomer[iClient] == true)
+			{
+				CreateTimer(0.1, TimerSuicideBoomerLaunch, iClient, TIMER_FLAG_NO_MAPCHANGE);
+			}
+		}
+	}
+	return;
+}
+
+Action CommandListener_JoinTeam(int iClient, const char[] command, int argc)
+{
+	// This is specifically for preventing user from changing team using M button on cool down
+	if (g_bPlayerInTeamChangeCoolDown[iClient] == true)
+	{
+		PrintToChat(iClient, "\x03[XPMod] \x05You can only change teams once every 3 seconds.");
+		return Plugin_Stop;
+	}
+
+	CreateTimer(0.1, TimerCheckTeam, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	//This needs to be at 0.2 because ResetAllVariables is called at 0.1 twice on change team
+	CreateTimer(0.2, TimerLoadTalentsDelay, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	StorePassedOrFrustratedTanksHealthPercentage(iClient);
+
+	// We now do not know which infected they have, because they switched teams
+	// These need to take place in this order, set UNKNOWN, then set CanBeGhost
+	g_iInfectedCharacter[iClient] = UNKNOWN_INFECTED;
+	// For checking if the player is a ghost
+	g_bCanBeGhost[iClient] = true;
+	g_bIsGhost[iClient] = false;
+
+	return Plugin_Continue;
+}
+
+Action Event_PlayerChangeTeam(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Continue;
+	
+	// Close any open menus so they don't carry over to the new team
+	ClosePanel(iClient);
+
+	g_bPlayerInTeamChangeCoolDown[iClient] = true;
+	CreateTimer(3.0, TimerResetPlayerChangeTeamCoolDown, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	CreateTimer(0.1, TimerCheckTeam, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	//This needs to be at 0.2 because ResetAllVariables is called at 0.1 twice on change team
+	CreateTimer(0.2, TimerLoadTalentsDelay, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	StorePassedOrFrustratedTanksHealthPercentage(iClient);
+
+	// We now do not know which infected they have, because they switched teams
+	// These need to take place in this order, set UNKNOWN, then set CanBeGhost
+	g_iInfectedCharacter[iClient] = UNKNOWN_INFECTED;
+	// For checking if the player is a ghost
+	g_bCanBeGhost[iClient] = true;
+	g_bIsGhost[iClient] = false;
+	
+	return Plugin_Continue;
+}
+
+Action Event_PlayerSpawn(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	
+	if(IsClientInGame(iClient) == false)
+		return Plugin_Continue;
+	if(IsValidEntity(iClient) ==  false)
+		return Plugin_Continue;
+	
+	g_iClientTeam[iClient] = GetClientTeam(iClient);
+
+	if(g_iClientTeam[iClient] == TEAM_INFECTED)
+	{
+		g_bIsGhost[iClient] = false;
+		g_bCanBeGhost[iClient] = false;
+		g_iInfectedCharacter[iClient] = GetEntProp(iClient, Prop_Send, "m_zombieClass");
+
+		// Auto-sync: binds require SPITTER/BOOMER/etc to be in one of the
+		// player's 3 picked class slots, but that's only ever set via
+		// XPMod's own menu (or a loaded save) - nothing previously kept it
+		// in sync with whatever class the player/bot manager actually put
+		// them in. If they're playing a real, pickable SI class right now
+		// and it's not already in any of their 3 slots, claim an empty one
+		// (or slot 1 if all full) so binds work without a manual menu visit.
+		SyncInfectedClassSlotFromCurrent(iClient);
+	}
+	else if(g_iClientTeam[iClient] == TEAM_SURVIVORS)
+	{
+		// Auto-sync: binds check g_iChosenSurvivor, but that's only ever set
+		// via XPMod's own character-select menu - it was never kept in sync
+		// with whatever survivor the player/bot manager actually spawned
+		// them as. Read the real native character and translate it (native
+		// m_survivorCharacter IDs do not match XPMod's own enum - see the
+		// mapping comment in GlobalVariables/Global_Variables.sp) so binds
+		// work without a manual menu visit.
+		int nativeChar = GetEntProp(iClient, Prop_Send, "m_survivorCharacter");
+		int xpmodChar = NativeSurvivorCharToXPMod(nativeChar);
+		if(xpmodChar != UNKNOWN_SURVIVOR)
+			g_iChosenSurvivor[iClient] = xpmodChar;
+	}
+
+	SetClientRenderAndGlowColor(iClient);
+	//ResetGlow(iClient);
+	SetEntProp(iClient, Prop_Send, "m_iHideHUD", 0);
+	
+	if(IsFakeClient(iClient) == false)
+	{
+		if(g_bClientSpectating[iClient] == true)
+			CreateTimer(0.1, TimerChangeSpectator, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	}
+	
+	if(g_iClientLevel[iClient] == 0)
+		g_iClientNextLevelXPAmount[iClient] = RoundToFloor(LEVEL_1 * XP_MULTIPLIER);
+		
+	if(g_bGameFrozen == false)
+	{
+		talentsJustGiven[iClient] = false;
+		
+		//This needs to be at 0.2 because ResetAllVariables is called at 0.1 twice on change team
+		CreateTimer(0.2, TimerLoadTalentsDelay, iClient, TIMER_FLAG_NO_MAPCHANGE);	
+	}
+	else if ((GetClientTeam(iClient)) == TEAM_SURVIVORS)
+		PlayerFreeze(iClient);
+
+	// Capture the players health for functionality like self revive on ledge
+	CreateTimer(0.1, TimerStorePlayerHealth, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	SetClientSpeed(iClient);
+
+	// If they just spawned then for sure they are not a frustrated tank
+	// Removed this because they should have it reset in the TimerResetAllTankVariables
+	//g_bIsFrustratedTank[iClient] = false;
+	CreateTimer(0.1, TimerResetAllTankVariables, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	// Debug Mode Kill Bot SI
+	if (g_bStopSISpawning && 
+		IsFakeClient(iClient) == true &&
+		g_iInfectedCharacter[iClient] != TANK &&
+		g_iClientTeam[iClient] == TEAM_INFECTED)
+	{
+		DealDamage(iClient, 0, 99999);
+	}
+
+	
+	return Plugin_Continue;
+}
+
+// Native m_survivorCharacter values do not match XPMod's own enum (see the
+// mapping comment in GlobalVariables/Global_Variables.sp) - translate here
+// rather than assigning the raw native value.
+int NativeSurvivorCharToXPMod(int nativeChar)
+{
+	switch(nativeChar)
+	{
+		case 0: return NICK;
+		case 1: return ROCHELLE;
+		case 2: return COACH;
+		case 3: return ELLIS;
+		case 4: return BILL;
+		case 5: return ZOEY;
+		case 6: return FRANCIS;
+		case 7: return LOUIS;
+	}
+
+	return UNKNOWN_SURVIVOR;
+}
+
+// If the player is currently playing one of the 6 pickable SI classes and
+// it's not already claimed in one of their 3 class slots, claim an empty
+// slot (or slot 1 if all 3 are full) so Bind1/Bind2 work immediately
+// without requiring a manual visit to XPMod's "Choose Infected" menu.
+void SyncInfectedClassSlotFromCurrent(int iClient)
+{
+	int currentClass = g_iInfectedCharacter[iClient];
+
+	if(currentClass != SMOKER && currentClass != BOOMER && currentClass != HUNTER &&
+		currentClass != SPITTER && currentClass != JOCKEY && currentClass != CHARGER)
+		return;
+
+	if(g_iClientInfectedClass1[iClient] == currentClass ||
+		g_iClientInfectedClass2[iClient] == currentClass ||
+		g_iClientInfectedClass3[iClient] == currentClass)
+		return;
+
+	if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED)
+		SetInfectedClassSlot(iClient, 1, currentClass);
+	else if(g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED)
+		SetInfectedClassSlot(iClient, 2, currentClass);
+	else if(g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED)
+		SetInfectedClassSlot(iClient, 3, currentClass);
+	else
+		SetInfectedClassSlot(iClient, 1, currentClass);
+}
+
+Action Event_PlayerReplacedByBot(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iReplacedPlayer = GetClientOfUserId(GetEventInt(hEvent, "player"));
+	int iBot = GetClientOfUserId(GetEventInt(hEvent, "bot"));
+
+
+	if(RunClientChecks(iBot) == false)
+		return Plugin_Continue;
+
+	if (g_iInfectedCharacter[iReplacedPlayer] == TANK)
+		g_bTankTakeOverBot[iBot] = true;
+	
+	return Plugin_Continue;
+}
+
+Action Event_BotReplacedByPlayer(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iPlayer = GetClientOfUserId(GetEventInt(hEvent, "player"));
+
+
+	if(RunClientChecks(iPlayer) == false)
+		return Plugin_Continue;
+
+	// This is for when the player goes idle
+	// set the bots health to the players health after the game does it
+	if (g_iClientTeam[iPlayer] == TEAM_SURVIVORS)
+		SetPlayerTalentMaxHealth(iPlayer, false);
+	
+	return Plugin_Continue;
+}
+
+Action Event_SurvivorRescued(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "victim"));
+
+
+	if(RunClientChecks(iClient) == false)
+		return Plugin_Continue;
+
+	// This is for when the player goes idle
+	// set the bots health to the players health after the game does it
+	if (g_iClientTeam[iClient] == TEAM_SURVIVORS)
+		SetPlayerTalentMaxHealth(iClient, false);
+	
+	return Plugin_Continue;
+}
+
+
+void SetupUnfreezeGameTimer(float unfreezeWaitTime)
+{	
+	if(g_iGameMode != GAMEMODE_SCAVENGE)
+	{
+		CreateTimer(unfreezeWaitTime, TimerUnfreeze, 0, TIMER_FLAG_NO_MAPCHANGE);
+
+		g_iUnfreezeNotifyRunTimes = RoundFloat(unfreezeWaitTime);
+		
+		delete g_hTimer_FreezeCountdown;
+		g_hTimer_FreezeCountdown = CreateTimer(1.0, TimerUnfreezeNotification, _, TIMER_REPEAT);
+	}
+	else
+	{
+		CreateTimer(0.3, TimerUnfreeze, 0, TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+
+
+
+
+public void OnClientPutInServer(int iClient)
+{
+	// Hook every client (bots included - they never fire player_connect_full)
+	// as soon as they exist. Unhook first so it can never double-hook.
+	SDKUnhook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+	SDKHook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+
+	if (g_bGamePaused && IsFakeClient(iClient) == false)
+	{
+		UnpauseGame(iClient);
+		CreateTimer(1.0, TimerPauseGame, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public void OnClientAuthorized(int iClient, const char[] strAuth)
+{
+	// Eagerly cache the Steam ID now that Steam has validated this client
+	char strSteamID64[32];
+	if (GetClientAuthId(iClient, AuthId_SteamID64, strSteamID64, sizeof(strSteamID64)))
+	{
+		CacheClientSteamID64(iClient, strSteamID64);
+		g_bClientSteamIDValidated[iClient] = true;
+		// Stop background validation timer since Steam just validated
+		g_bClientAuthValidationPending[iClient] = false;
+		g_iClientAuthValidationRetryCount[iClient] = 0;
+	}
+
+	if (g_bClientAuthInitPending[iClient] == false)
+		return;
+
+	StartClientAuthReadyInitialization(iClient);
+}
+
+Action Event_PlayerConnect(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	HandleClientConnect(iClient);
+
+	return Plugin_Continue;
+}
+
+
+Action Event_PlayerDisconnect(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	HandleClientDisconnect(iClient);
+	
+	return Plugin_Continue;
+}
+
+Action Event_FriendlyFire(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	return Plugin_Continue;
+}
+
+Action Event_PlayerShoved(Event event, const char[] name, bool dontBroadcast)
+{
+	
+	return Plugin_Continue;
+}
+
+void StartSmokerSmokeCloudRoundStartWait()
+{
+	if (g_bPlayerLeftStartArea == true || 
+		g_bEndOfRound == true ||
+		g_bPlayerPressedButtonThisRound == false)
+		return;
+
+	g_bPlayerLeftStartArea = true;
+
+	// Smoker global wait on Smoke Cloud until the round is properly underway.
+	CreateTimer(SMOKER_SMOKE_CLOUD_GLOBAL_SAFE_ROOM_WAIT_DURATION, TimerAllowSmokersToUseBind1AfterSafeRoomDoorOpened, _, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+Action Event_SurvivalRoundStart(Handle hEvent, const char[] name, bool dontBroadcast)
+{
+	if (g_iGameMode != GAMEMODE_VERSUS_SURVIVAL ||
+		g_bGameFrozen == true)
+		return Plugin_Continue;
+
+	StartSmokerSmokeCloudRoundStartWait();
+
+	return Plugin_Continue;
+}
+
+// Triggered when player opens safe room door and walks out
+Action Event_PlayerLeftStartArea(Handle hEvent, const char[] name, bool dontBroadcast)
+{
+	if (g_bPlayerLeftStartArea == true || 
+		g_bGameFrozen == true || 
+		g_bEndOfRound == true ||
+		g_bPlayerPressedButtonThisRound == false)
+		return Plugin_Continue;
+
+	StartSmokerSmokeCloudRoundStartWait();
+
+	return Plugin_Continue;
+}

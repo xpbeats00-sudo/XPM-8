@@ -1,0 +1,861 @@
+Action AdminMenuDraw(int iClient)
+{
+	// Reset all selected options so nothing is falsely selected
+	ResetAllAdminMenuSelectionVariables(iClient);
+
+	Menu menu = CreateMenu(AdminMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+	
+	SetMenuTitle(menu, "XPMod Admin Menu\n ");
+	AddMenuItem(menu, "option1", "Auto-Balance Teams   [NOT READY]");
+	AddMenuItem(menu, "option2", "Switch Player's Team");
+	AddMenuItem(menu, "option3", "Dev: Max XP/Talents (Testing)");
+	AddMenuItem(menu, "option4", "Mute Player");
+	AddMenuItem(menu, "option5", "Kick Player");
+	AddMenuItem(menu, "option6", "Ban Player");
+	AddMenuItem(menu, "option7", "Griefing Undo Tools");
+	AddMenuItem(menu, "option8", g_bGamePaused ? "Unpause Game\n ": "Pause Game\n ");
+	AddMenuItem(menu, "option9", "Back to Main Menu");
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void AdminMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Auto-Balance Teams
+			{
+				PrintToChat(iClient, "This feature is not ready yet.");
+				AdminMenuDraw(iClient);
+			}
+			case 1: //Switch Player Team
+			{
+				SwitchPlayersTeamMenuDraw(iClient);
+			}
+			case 2: //Dev: Max XP/Talents
+			{
+				GiveClientMaxXPForTesting(iClient);
+				AdminMenuDraw(iClient);
+			}
+			case 3: //Mute Player
+			{
+				MutePlayerMenuDraw(iClient);
+			}
+			case 4: //Kick Player
+			{
+				KickPlayerMenuDraw(iClient);
+			}
+			case 5: //Ban Player
+			{
+				BanPlayerMenuDraw(iClient);
+			}
+			case 6: //Griefing Undo Tools
+			{
+				AdminGriefingUndoToolsMenuDraw(iClient)
+			}
+			case 7: //Pause Unpause Game
+			{
+				if (GetClientAdminLevel(iClient) > 0)
+					ToggleGamePaused(iClient);
+				
+				AdminMenuDraw(iClient);
+			}
+			case 8: //Back to Main Menu
+			{
+				TopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+void ResetAllAdminMenuSelectionVariables(int iClient)
+{
+	g_iAdminSelectedClientID[iClient] = -1;
+	g_iAdminSelectedDuration[iClient] = -1;
+	g_bAdminSelectedTargetIsConnected[iClient] = false;
+	g_strAdminSelectedTargetSteamID[iClient][0] = '\0';
+	g_strAdminSelectedTargetName[iClient][0] = '\0';
+}
+
+Action SwitchPlayersTeamMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(SwitchPlayersTeamMenuHandler);
+
+	ResetAllAdminMenuSelectionVariables(iClient);
+	
+	SetMenuTitle(menu, "Select a team for Whom?\n ");
+	
+	AddAllCurrentPlayersToMenu(menu);
+
+	SetMenuExitButton(menu, true);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+void SwitchPlayersTeamMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		int iTarget; char strSteamID[32]; char strClientName[32];
+		if (GetTargetIDandSteamIDFromMenuParameters(iClient, menu, itemNum, iTarget, strSteamID, sizeof(strSteamID), strClientName, sizeof(strClientName)) == false)
+		{
+			PrintToChat(iClient, "Error obtaining client info for team switch.");
+			LogError("BanPlayerMenuHandler: Error obtaining client info for team switch", iTarget);
+			return;
+		}
+
+		g_iAdminSelectedClientID[iClient] = iTarget;
+		SwitchPlayersTeamSelectTeamMenuDraw(iClient);
+	}
+}
+
+Action SwitchPlayersTeamSelectTeamMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(SwitchPlayersTeamMenuSelectTeamHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	if (RunClientChecks(g_iAdminSelectedClientID[iClient]) == false || 
+		IsFakeClient(g_iAdminSelectedClientID[iClient]) == true)
+	{
+		SwitchPlayersTeamMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+	
+	SetMenuTitle(menu, "Switching %N's team.\
+		\nWhat Team?\n ", 
+		g_iAdminSelectedClientID[iClient]);
+	
+	AddMenuItem(menu, "option1", "Survivors");
+	AddMenuItem(menu, "option2", "Infected");
+	AddMenuItem(menu, "option3", "Spectators\n ");
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option9", "Back");
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+
+void SwitchPlayersTeamMenuSelectTeamHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (itemNum == 8)
+		{
+			AdminMenuDraw(iClient);
+			return;
+		}
+
+		if (RunClientChecks(g_iAdminSelectedClientID[iClient]) == false || 
+			IsFakeClient(g_iAdminSelectedClientID[iClient]) == true)
+		{
+			SwitchPlayersTeamMenuDraw(iClient);
+			return;
+		}
+
+		int iTarget = g_iAdminSelectedClientID[iClient];
+		int iTeam = TEAM_SPECTATORS;
+
+		switch (itemNum)
+		{
+			case 0: iTeam = TEAM_SURVIVORS;
+			case 1: iTeam = TEAM_INFECTED;
+			case 2: iTeam = TEAM_SPECTATORS;
+		}
+
+		if (SwitchPlayerTeam(iClient, iTarget, iTeam) == false)
+			SwitchPlayersTeamMenuDraw(iClient);
+	}
+}
+
+Action MutePlayerMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(MutePlayerMenuHandler);
+	
+	SetMenuTitle(menu, "Mute or Unmute Whom?\n ");
+	
+	AddAllCurrentPlayersToMenu(menu);
+
+	SetMenuExitButton(menu, true);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+void MutePlayerMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		int iTarget; char strSteamID[32]; char strClientName[32];
+		if (GetTargetIDandSteamIDFromMenuParameters(iClient, menu, itemNum, iTarget, strSteamID, sizeof(strSteamID), strClientName, sizeof(strClientName)) == false)
+		{
+			PrintToChat(iClient, "Error obtaining client info for ban.");
+			LogError("BanPlayerMenuHandler: Error obtaining client info for ban", iTarget);
+			return;
+		}
+
+		// Toggle mute on the player
+		MutePlayer(iTarget, !g_bIsPlayerMuted[iTarget], false);
+
+		MutePlayerMenuDraw(iClient);
+	}
+}
+
+
+Action KickPlayerMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(KickPlayerMenuHandler);
+	
+	SetMenuTitle(menu, "Kick Whom?\n ");
+	
+	AddAllCurrentPlayersToMenu(menu);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+void KickPlayerMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		int iTarget; char strSteamID[32]; char strClientName[32];
+		if (GetTargetIDandSteamIDFromMenuParameters(iClient, menu, itemNum, iTarget, strSteamID, sizeof(strSteamID), strClientName, sizeof(strClientName)) == false)
+		{
+			PrintToChat(iClient, "Error obtaining client info for ban.");
+			LogError("BanPlayerMenuHandler: Error obtaining client info for ban", iTarget);
+			return;
+		}
+		
+		PrintToChat(iClient, "\x03[XPMod] \x04Kicking %N...", iTarget);
+		KickClient(iTarget, "You were kicked by an Admin");
+	}
+}
+
+
+Action BanPlayerMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(BanPlayerMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	SetMenuTitle(menu, "Are they still in the server?\n ");
+	
+	AddMenuItem(menu, "option1", "They are still in the server");
+	AddMenuItem(menu, "option2", "They disconnected\n \n \n \n \n ");
+	AddMenuItem(menu, "option3", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option9", "Back to Admin Menu");
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void BanPlayerMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Player in game server now
+			{
+				BanPlayerInServerMenuDraw(iClient);
+			}
+			case 1: //Disconnected Player
+			{
+				BanPlayerDisconnectedMenuDraw(iClient);
+			}
+			case 8: //Back to Admin Menu
+			{
+				AdminMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+Action BanPlayerInServerMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(BanPlayerInServerMenuHandler);
+	
+	SetMenuTitle(menu, "Ban Whom?\n ");
+	
+	AddAllCurrentPlayersToMenu(menu);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void BanPlayerInServerMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		int iTarget; char strSteamID[32]; char strClientName[32];
+		if (GetTargetIDandSteamIDFromMenuParameters(iClient, menu, itemNum, iTarget, strSteamID, sizeof(strSteamID), strClientName, sizeof(strClientName)) == false)
+		{
+			PrintToChat(iClient, "Error obtaining client info for ban.");
+			LogError("BanPlayerMenuHandler: Error obtaining client info for ban", iTarget);
+			return;
+		}
+
+		SetAdminBanSelectionTarget(iClient, true, iTarget, strSteamID, strClientName);
+		BanPlayerDurationMenuDraw(iClient);
+	}
+}
+
+Action BanPlayerDisconnectedMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(BanPlayerDisconnectedMenuHandler);
+	
+	SetMenuTitle(menu, "Ban Whom?\n ");
+	
+	AddAllDisconnectedPlayersToMenu(menu);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+void BanPlayerDisconnectedMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		int iTarget; char strSteamID[32]; char strClientName[32];
+		if (GetTargetIDandSteamIDFromMenuParameters(iClient, menu, itemNum, iTarget, strSteamID, sizeof(strSteamID), strClientName, sizeof(strClientName), false) == false)
+		{
+			PrintToChat(iClient, "Error obtaining client info for ban.");
+			LogError("BanPlayerMenuHandler: Error obtaining client info for ban", iTarget);
+			return;
+		}
+
+		SetAdminBanSelectionTarget(iClient, false, -1, strSteamID, strClientName);
+		BanPlayerDurationMenuDraw(iClient);
+	}
+}
+
+void SetAdminBanSelectionTarget(int iClient, bool bTargetConnected, int iTarget, const char[] strSteamID, const char[] strClientName)
+{
+	g_bAdminSelectedTargetIsConnected[iClient] = bTargetConnected;
+	g_iAdminSelectedClientID[iClient] = iTarget;
+	g_iAdminSelectedDuration[iClient] = -1;
+
+	strcopy(g_strAdminSelectedTargetSteamID[iClient], sizeof(g_strAdminSelectedTargetSteamID[]), strSteamID);
+	strcopy(g_strAdminSelectedTargetName[iClient], sizeof(g_strAdminSelectedTargetName[]), strClientName);
+}
+
+void GetAdminBanSelectedTargetName(int iClient, char[] strTargetName, int iTargetNameSize)
+{
+	if (g_bAdminSelectedTargetIsConnected[iClient] && RunClientChecks(g_iAdminSelectedClientID[iClient]))
+	{
+		Format(strTargetName, iTargetNameSize, "%N", g_iAdminSelectedClientID[iClient]);
+		return;
+	}
+
+	if (g_strAdminSelectedTargetName[iClient][0] == '\0')
+	{
+		Format(strTargetName, iTargetNameSize, "Unknown Player");
+		return;
+	}
+
+	Format(strTargetName, iTargetNameSize, "%s", g_strAdminSelectedTargetName[iClient]);
+}
+
+int GetAdminBanDurationSecondsFromMenuItem(int itemNum)
+{
+	switch (itemNum)
+	{
+		case 0: return 0;                  // Permanent
+		case 1: return 60 * 60;            // 1 hour
+		case 2: return 60 * 60 * 12;       // 12 hours
+		case 3: return 60 * 60 * 24;       // 1 day
+		case 4: return 60 * 60 * 24 * 7;   // 1 week
+		case 5: return 60 * 60 * 24 * 30;  // 1 month
+	}
+
+	return -1;
+}
+
+void GetAdminBanDurationLabel(int iDurationSeconds, char[] strDurationLabel, int iDurationLabelSize)
+{
+	switch (iDurationSeconds)
+	{
+		case 0: Format(strDurationLabel, iDurationLabelSize, "Permanent");
+		case 60 * 60: Format(strDurationLabel, iDurationLabelSize, "1 Hour");
+		case 60 * 60 * 12: Format(strDurationLabel, iDurationLabelSize, "12 Hours");
+		case 60 * 60 * 24: Format(strDurationLabel, iDurationLabelSize, "1 Day");
+		case 60 * 60 * 24 * 7: Format(strDurationLabel, iDurationLabelSize, "1 Week");
+		case 60 * 60 * 24 * 30: Format(strDurationLabel, iDurationLabelSize, "1 Month");
+		default:
+		{
+			int iMinutes = iDurationSeconds / 60;
+			Format(strDurationLabel, iDurationLabelSize, "%i Minutes", iMinutes);
+		}
+	}
+}
+
+Action BanPlayerDurationMenuDraw(int iClient)
+{
+	if (g_strAdminSelectedTargetSteamID[iClient][0] == '\0')
+	{
+		BanPlayerMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+
+	Menu menu = CreateMenu(BanPlayerDurationMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strTargetName[32];
+	GetAdminBanSelectedTargetName(iClient, strTargetName, sizeof(strTargetName));
+	SetMenuTitle(menu, "Banning %s\nSelect ban duration:\n ", strTargetName);
+
+	// Permanent is intentionally first/default.
+	AddMenuItem(menu, "option1", "Permanent");
+	AddMenuItem(menu, "option2", "1 Hour");
+	AddMenuItem(menu, "option3", "12 Hours");
+	AddMenuItem(menu, "option4", "1 Day");
+	AddMenuItem(menu, "option5", "1 Week");
+	AddMenuItem(menu, "option6", "1 Month\n ");
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option9", "Back");
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void BanPlayerDurationMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (itemNum == 8)
+		{
+			if (g_bAdminSelectedTargetIsConnected[iClient])
+				BanPlayerInServerMenuDraw(iClient);
+			else
+				BanPlayerDisconnectedMenuDraw(iClient);
+			return;
+		}
+
+		g_iAdminSelectedDuration[iClient] = GetAdminBanDurationSecondsFromMenuItem(itemNum);
+		if (g_iAdminSelectedDuration[iClient] < 0)
+		{
+			BanPlayerDurationMenuDraw(iClient);
+			return;
+		}
+
+		BanPlayerReasonMenuDraw(iClient);
+	}
+}
+
+Action BanPlayerReasonMenuDraw(int iClient)
+{
+	if (g_iAdminSelectedDuration[iClient] < 0)
+	{
+		BanPlayerDurationMenuDraw(iClient);
+		return Plugin_Handled;
+	}
+
+	Menu menu = CreateMenu(BanPlayerReasonMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strTargetName[32], strDurationLabel[32];
+	GetAdminBanSelectedTargetName(iClient, strTargetName, sizeof(strTargetName));
+	GetAdminBanDurationLabel(g_iAdminSelectedDuration[iClient], strDurationLabel, sizeof(strDurationLabel));
+
+	SetMenuTitle(menu, "Banning %s (%s)\nSelect ban reason:\n ", strTargetName, strDurationLabel);
+
+	AddMenuItem(menu, "option1", "Cheating or Exploits");
+	AddMenuItem(menu, "option2", "Griefing or Team Killing");
+	AddMenuItem(menu, "option3", "Harassment or Toxic Behavior");
+	AddMenuItem(menu, "option4", "Hate Speech or Slurs");
+	AddMenuItem(menu, "option5", "Mic Spam or Disruptive Noise");
+	AddMenuItem(menu, "option6", "AFK or Not Participating");
+	AddMenuItem(menu, "option7", "Ban Evasion");
+	AddMenuItem(menu, "option8", "Other Rule Violation\n ");
+	AddMenuItem(menu, "option9", "Back");
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void ApplySelectedAdminBan(int iClient, const char[] strReason)
+{
+	if (g_iAdminSelectedDuration[iClient] < 0 || g_strAdminSelectedTargetSteamID[iClient][0] == '\0')
+	{
+		BanPlayerMenuDraw(iClient);
+		return;
+	}
+
+	char strDurationLabel[32];
+	GetAdminBanDurationLabel(g_iAdminSelectedDuration[iClient], strDurationLabel, sizeof(strDurationLabel));
+
+	if (g_bAdminSelectedTargetIsConnected[iClient])
+	{
+		int iTarget = g_iAdminSelectedClientID[iClient];
+		if (RunClientChecks(iTarget) == false ||
+			IsFakeClient(iTarget) == true ||
+			VerifyClientSteamIDMatches(iTarget, g_strAdminSelectedTargetSteamID[iClient]) == false)
+		{
+			PrintToChat(iClient, "\x03[XPMod] \x04Selected player is no longer valid, please try again.");
+			BanPlayerInServerMenuDraw(iClient);
+			return;
+		}
+
+		PrintToChat(iClient, "\x03[XPMod] \x04Banning %N for %s (%s)...", iTarget, strDurationLabel, strReason);
+			SQLAddBannedUserToDatabaseUsingClientID(iTarget, g_iAdminSelectedDuration[iClient], strReason, iClient);
+
+		if (g_iAdminSelectedDuration[iClient] <= 0)
+		{
+			KickClient(iTarget, "You are permanently banned from XPMod servers");
+		}
+		else
+		{
+			char strKickMessage[192];
+			Format(strKickMessage, sizeof(strKickMessage), "You are banned from XPMod servers for %s (%s)", strDurationLabel, strReason);
+			KickClient(iTarget, strKickMessage);
+		}
+	}
+	else
+	{
+		char strClientName[32];
+		strcopy(strClientName, sizeof(strClientName), g_strAdminSelectedTargetName[iClient]);
+
+		PrintToChat(iClient, "\x03[XPMod] \x04Banning %s for %s (%s)...", strClientName, strDurationLabel, strReason);
+			SQLAddBannedUserToDatabaseUsingNameAndSteamID(strClientName, sizeof(strClientName), g_strAdminSelectedTargetSteamID[iClient], g_iAdminSelectedDuration[iClient], strReason, iClient);
+	}
+
+	ResetAllAdminMenuSelectionVariables(iClient);
+	BanPlayerMenuDraw(iClient);
+}
+
+void BanPlayerReasonMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (itemNum == 8)
+		{
+			BanPlayerDurationMenuDraw(iClient);
+			return;
+		}
+
+		char strSelectedReason[64];
+		switch (itemNum)
+		{
+			case 0: strcopy(strSelectedReason, sizeof(strSelectedReason), "Cheating or Exploits");
+			case 1: strcopy(strSelectedReason, sizeof(strSelectedReason), "Griefing or Team Killing");
+			case 2: strcopy(strSelectedReason, sizeof(strSelectedReason), "Harassment or Toxic Behavior");
+			case 3: strcopy(strSelectedReason, sizeof(strSelectedReason), "Hate Speech or Slurs");
+			case 4: strcopy(strSelectedReason, sizeof(strSelectedReason), "Mic Spam or Disruptive Noise");
+			case 5: strcopy(strSelectedReason, sizeof(strSelectedReason), "AFK or Not Participating");
+			case 6: strcopy(strSelectedReason, sizeof(strSelectedReason), "Ban Evasion");
+			case 7: strcopy(strSelectedReason, sizeof(strSelectedReason), "Other Rule Violation");
+			default:
+			{
+				BanPlayerReasonMenuDraw(iClient);
+				return;
+			}
+		}
+
+		ApplySelectedAdminBan(iClient, strSelectedReason);
+	}
+}
+
+void AddAllCurrentPlayersToMenu(Menu menu)
+{
+	for (int iTarget = 1; iTarget <= MaxClients; iTarget++)
+	{
+		if(RunClientChecks(iTarget) && IsFakeClient(iTarget) == false)
+		{
+			//Get Steam Auth ID, if this returns false, then do not proceed
+			char strSteamID[32];
+			if (GetClientSteamID64(iTarget, strSteamID, sizeof(strSteamID)) == false)
+				continue;
+
+			// Get the in game client id
+			char strParameters[32];
+			Format(strParameters, sizeof(strParameters),"%i;%s;%N", 
+				iTarget, strSteamID, iTarget)
+			
+			// Combine the info into a string that the admin will see
+			char strTargetInfo[50];
+			Format(strTargetInfo, sizeof(strTargetInfo), " (%i: %s) %N",
+				iTarget,
+				strSteamID,
+				iTarget);
+
+			AddMenuItem(menu, strParameters, strTargetInfo);
+		}
+	}
+}
+
+void AddAllDisconnectedPlayersToMenu(Menu menu)
+{
+	for (int i = 0; i < g_iDisconnectedPlayerCnt; i++)
+	{
+
+		// Get the in game client id
+		char strParameters[32];
+		Format(strParameters, sizeof(strParameters),"%i;%s;%s",
+			i, 
+			g_strDisconnectedConnectedPlayerSteamID[i],
+			g_strDisconnectedConnectedPlayerNames[i])
+		
+		// Combine the info into a string that the admin will see
+		char strTargetInfo[50];
+		Format(strTargetInfo, sizeof(strTargetInfo), " (%i: %s) %s",
+		i,
+		g_strDisconnectedConnectedPlayerSteamID[i],
+		g_strDisconnectedConnectedPlayerNames[i]);
+
+		AddMenuItem(menu, strParameters, strTargetInfo);
+	}
+}
+
+bool GetTargetIDandSteamIDFromMenuParameters(int iClient, Menu menu, int itemNum, int &iTarget, char[] strSteamID, int iSteamIDSize, char[] strClientName, int iClientNameSize, bool bVerifyTargetEqualsSteamID=true)
+{
+	// Get the client parameters
+	char strInfo[128], strParameters[3][32];
+	GetMenuItem(menu, itemNum, strInfo, sizeof(strInfo));
+	ExplodeString(strInfo, ";", strParameters, sizeof(strParameters), sizeof(strParameters[]));
+	iTarget = -1;
+
+
+	// This is for if the target is not in the server anymore
+	if (bVerifyTargetEqualsSteamID == false)
+	{
+		iTarget = StringToInt(strParameters[0]);
+		// Store the steamid parameter
+		Format(strSteamID, iSteamIDSize, "%s", strParameters[1]);
+		Format(strClientName, iClientNameSize, "%s", strParameters[2]);
+		return true;
+	}
+
+	iTarget = StringToInt(strParameters[0]);
+
+	if (RunClientChecks(iTarget) == false || IsFakeClient(iTarget))
+	{
+		PrintToChat(iClient, "Client %i is invalid.", iTarget);
+		LogError("GetTargetIDandSteamIDFromMenuParameters: iTarget %i is invalid", iTarget);
+		return false;
+	}
+
+	// Verify the steamid here (pass in and verify), because of time delay client id is not enough
+	if (VerifyClientSteamIDMatches(iTarget, strParameters[1]) == false)
+	{
+		PrintToChat(iClient, "Client %i does not match the selected steamID, please try again.", iTarget);
+		LogError("GetTargetIDandSteamIDFromMenuParameters: Client %i does not match the selected steamID", iTarget);
+		return false;
+	}
+
+	// Store the steamid parameter
+	Format(strSteamID, iSteamIDSize, "%s", strParameters[1]);
+	Format(strClientName, iClientNameSize, "%s", strParameters[2]);
+
+	return true;
+}
+
+bool VerifyClientSteamIDMatches(int iClient, char[] strSteamIDToCheck)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient))
+		return false;
+
+	//Get Steam Auth ID, if this returns false, then do not proceed
+	char strSteamID[32];
+	if (GetClientSteamID64(iClient, strSteamID, sizeof(strSteamID)) == false)
+		return false;
+
+	if (strcmp(strSteamIDToCheck, strSteamID, false) == 0)
+		return true;
+
+	return false;
+}
+
+// Undo Griefing Tools
+Action AdminGriefingUndoToolsMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(AdminGriefingUndoToolsMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+	
+	SetMenuTitle(menu, "Griefing Undo Tools\n ");
+	AddMenuItem(menu, "option1", "Revive and Full Heal Survivor");
+	AddMenuItem(menu, "option2", "Revive and Full Heal All Survivors");
+	AddMenuItem(menu, "option3", "Resurrect Survivor\n ");
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option9", "Back to Admin Menu");
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void AdminGriefingUndoToolsMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Revive and Full Heal Survivor
+			{
+				AdminReviveAndFullHealSurvivorMenuDraw(iClient);
+			}
+			case 1: //Revive and Full Heal All Survivors
+			{
+				HealAllSurvivorsFully();
+				PrintToChat(iClient, "\x03[XPMod] \x04All Survivors have been revived and fully headed.");
+
+				AdminGriefingUndoToolsMenuDraw(iClient);
+			}
+			case 2: //Resurrect Survivor
+			{
+				int iTarget = FindAndResurrectSurvivor(iClient);
+
+				if (RunClientChecks(iTarget))
+					HealClientFully(iTarget);
+				else
+					PrintToChat(iClient, "\x03[XPMod] \x04No dead Survivors were found.");
+
+				AdminGriefingUndoToolsMenuDraw(iClient);
+			}
+			case 8: //Back to Main Menu
+			{
+				AdminMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+// ReviveAndFullHealSurvivor
+Action AdminReviveAndFullHealSurvivorMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(AdminReviveAndFullHealSurvivorMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+	
+	SetMenuTitle(menu, "Revive and Full Heal Survivor\n ");
+
+	for (int i=1; i <= MaxClients; i++)
+	{
+		if (RunClientChecks(i) &&
+			g_iClientTeam[i] == TEAM_SURVIVORS && 
+			IsPlayerAlive(i))
+		{
+			// Get the in game client name
+			char strSurvivorInfo[32];
+			Format(strSurvivorInfo, sizeof(strSurvivorInfo),"(%i) %N - (%i HP)",
+				i,
+				i,
+				GetPlayerHealth(i));
+
+			char strID[8];
+			Format(strID, sizeof(strID), "%i", i);
+			AddMenuItem(menu, strID, strSurvivorInfo);
+		}
+	}
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option9", "Back to Admin Menu");
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void AdminReviveAndFullHealSurvivorMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (itemNum == 8)
+		{
+			AdminGriefingUndoToolsMenuDraw(iClient);
+			return;
+		}
+
+		char strInfo[128];
+		GetMenuItem(menu, itemNum, strInfo, sizeof(strInfo));
+		int iTarget = StringToInt(strInfo);
+		HealClientFully(iTarget);
+
+		AdminReviveAndFullHealSurvivorMenuDraw(iClient);
+	}
+}

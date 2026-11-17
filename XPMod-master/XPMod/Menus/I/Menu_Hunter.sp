@@ -1,0 +1,413 @@
+//Hunter Menu
+
+//Hunter Menu Draw
+Action HunterTopMenuDraw(int iClient) 
+{
+
+	Menu menu = CreateMenu(HunterTopMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strXP[32];
+	FormatXPDisplay(iClient, strXP, sizeof(strXP));
+	FormatEx(text, sizeof(text), "%sLevel %d	XP: %s\n==========================\nHunter Talents:\n==========================\n \nPredatorial Evolution: Level %d\nBlood Lust: Level %d\nKill-meleon: Level %d\n \n", strStartingNewLines, g_iClientLevel[iClient], strXP, g_iPredatorialLevel[iClient], g_iBloodLustLevel[iClient], g_iKillmeleonLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 4+3);
+	AddMenuItem(menu, "option1", "Predatorial Evolution");
+	AddMenuItem(menu, "option2", "Blood Lust");
+	AddMenuItem(menu, "option3", "Kill-meleon\n ");
+	
+	AddMenuItem(menu, "option4", "Choose The Hunter\n ");
+	
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n==========================\
+		%s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Talent Draws///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Predatorial Evolution Menu Draw
+Action PredatorialMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(PredatorialMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%sPredatorial Evolution (Level %d)     \
+		\n \
+		\nHold [ATTACK] Dismount Victims\
+		\n \
+		\n+5%% Move Speed per Lvl\
+		\n \
+		\nEvolved Lunge:\
+		\n	Lunge Much Faster and Further\
+		\n \
+		\n	Hold [JUMP] Controlled Descent\
+		\n		Flying squirrel Glide\
+		\n \
+		\n	Hold [ATTACK] Dive Bomb\
+		\n		Dash At Target\
+		\n		Uses Momentum + Aim\
+		\n \
+		\nExtra Damage For A Far Pounce\
+		\n	Up To 20 Extra Damage\
+		\n	Min: 150 FT\
+		\n	Max: 350 FT\
+		\n ",
+		strStartingNewLines,
+		g_iPredatorialLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Blood Lust Menu Draw
+Action BloodLustMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(BloodLustMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%sBlood Lust (Level %d)\
+		\n \
+		\nPounce or Claw a Victim to Feed Your\
+		\nBlood Lust Meter\
+		\n \
+		\n3 Blood Lust Stages:\
+		\n	+35%% Move Speed per Stage\
+		\n	+25%% Non-Lunge Stealth per Stage\
+		\n	+1 Shred Dmg per Stage\
+		\n	+30 HP/s Regen per Stage\
+		\n \n \
+		\nBind 1: Immobilization Area\
+		\n \
+		\nDeploy Immobilization Cloud\
+		\n	Survivor Speed In Cloud: 15%%\
+		\n	Can't Cast While Seen\
+		\n	30s Duration\
+		\n	120s Global CD\
+		\n ",
+		strStartingNewLines,
+		g_iBloodLustLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Kill-meleon Menu Draw
+Action KillmeleonMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(KillmeleonMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%sKill-meleon (Level %d)\
+		\n \
+		\n+250 Max Health\
+		\nHide Glow\
+		\n \
+		\nStand Still to Build Stealth\
+		\n	Up to 95%% Invisible\
+		\n	If Survivors See You While Invisible:    \
+		\n		Blood Lust Fills Fast\
+		\n		Closer Survivors Fill It Faster\
+		\n \n \
+		\nBind 2: Lethal Injection (3 Uses)\
+		\n \
+		\nNext attack: 4 Dmg/s Poison\
+		\n+1 Sec/Lvl\
+		\nPoison Prevents Item Exchanging\
+		\nSlow Victims to 25%%\
+		\n ",
+		strStartingNewLines,
+		g_iKillmeleonLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Choose Hunter Menu Draw
+Action ChooseHunterClassMenuDraw(int iClient) 
+{
+
+	
+	Menu menu = CreateMenu(ChooseHunterClassMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+	
+	char title[256];
+	FormatEx(title, sizeof(title), "==========================\n		Current Classes\n \nClass 1)	%s\nClass 2)	%s\nClass 3)	%s\n==========================\n \nPick a class to replace with the Hunter:",g_strClientInfectedClass1[iClient], g_strClientInfectedClass2[iClient], g_strClientInfectedClass3[iClient]);
+	SetMenuTitle(menu, "%s", title);
+	AddMenuItem(menu, "option1", "Replace Class 1");
+	AddMenuItem(menu, "option2", "Replace Class 2");
+	AddMenuItem(menu, "option3", "Replace Class 3");
+	AddMenuItem(menu, "option9", "Back");
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	return Plugin_Handled;
+}
+
+//Handlers/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Hunter Top Menu Handler
+void HunterTopMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Predatorial Evolution
+			{
+				PredatorialMenuDraw(iClient);
+			}
+			case 1: //Blood Lust
+			{
+				BloodLustMenuDraw(iClient);
+			}
+			case 2: //Kill-meleon
+			{
+				KillmeleonMenuDraw(iClient);
+			}
+			case 3: //Select This Class
+			{
+				if((g_iClientInfectedClass1[iClient] != HUNTER) && (g_iClientInfectedClass2[iClient] != HUNTER) && (g_iClientInfectedClass3[iClient] != HUNTER))
+				{
+					if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED || g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED || g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+						ChooseHunterClassMenuDraw(iClient);
+					else
+					{
+						PrintToChat(iClient, "\x03[XPMod] \x05You cannot change your characters if your talents are confirmed for this round.");
+						HunterTopMenuDraw(iClient);
+					}
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You already have the \x04hunter\x05 as one of your classes.");
+					HunterTopMenuDraw(iClient);
+				}
+			}
+			case 8: //Back
+			{
+				TopInfectedMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Predatorial Evolution Menu Handler
+void PredatorialMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				HunterTopMenuDraw(iClient);
+			}
+/*			case 1: //Talent Info
+			{
+				PredatorialDescMenuDraw(iClient);
+			}*/
+		}
+	}
+}
+
+//Blood Lust Menu Handler
+void BloodLustMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				HunterTopMenuDraw(iClient);
+			}
+/*			case 1: //Talent Info
+			{
+				BloodLustDescMenuDraw(iClient);
+			}
+			case 2: //Bind Info
+			{
+				BloodLustBindMenuDraw(iClient);
+			}
+			case 3: //How To Use Binds
+			{
+				HowToBindMenuDraw(iClient);
+			}*/
+		}
+	}
+}
+
+//Kill-meleon Menu Handler
+void KillmeleonMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				HunterTopMenuDraw(iClient);
+			}
+/*			case 1: //Talent Info
+			{
+				KillmeleonDescMenuDraw(iClient);
+			}
+			case 2: //Bind Info
+			{
+				KillmeleonBindMenuDraw(iClient);
+			}
+			case 3: //How To Use Binds
+			{
+				HowToBindMenuDraw(iClient);
+			}*/
+		}
+	}
+}
+
+//Choose Hunter Top Menu Handler
+void ChooseHunterClassMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Replace Class 1
+			{
+				if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass1[iClient]);
+					SetInfectedClassSlot(iClient, 1, HUNTER);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 1\x05 with the \x04Hunter\x05.");
+					HunterTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 1\x05 because it has already been confirmed.");
+					ChooseHunterClassMenuDraw(iClient);
+				}
+			}
+			case 1: //Replace Class 2
+			{
+				if(g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass2[iClient]);
+					SetInfectedClassSlot(iClient, 2, HUNTER);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 2\x05 with the \x04Hunter\x05.");
+					HunterTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 2\x05 because it has already been confirmed.");
+					ChooseHunterClassMenuDraw(iClient);
+				}
+			}
+			case 2: //Replace Class 3
+			{
+				if(g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass3[iClient]);
+					SetInfectedClassSlot(iClient, 3, HUNTER);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 3\x05 with the \x04Hunter\x05.");
+					HunterTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 3\x05 because it has already been confirmed.");
+					ChooseHunterClassMenuDraw(iClient);
+				}
+			}
+			default: //Back
+			{
+				HunterTopMenuDraw(iClient);
+			}
+		}
+	}
+}

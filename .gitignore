@@ -1,0 +1,42 @@
+# --- Source engine / L4D2 dedicated server base files ---
+# These are stock Steam/game files, not custom content - don't track them
+# if any full server folder ever gets copied/dragged in here.
+hl2/
+platform/
+steamapps/
+update/
+left4dead2_dlc1/
+left4dead2_dlc2/
+left4dead2_dlc3/
+left4dead2_lv/
+bin/
+*.vpk
+!XPMod-master/addon_files/**/*.vpk
+maps/
+materials/
+models/
+!XPMod-master/XPMod/Database/Models/
+scenes/
+scripts/
+gfx/
+expressions/
+media/
+resource/
+reslists/
+*.exe
+!*/scripting/*.exe
+!compile.exe
+!spcomp*
+steamcmd/
+mariadb_aria_backup*/
+
+# --- Runtime / generated / logs ---
+logs/
+downloads/
+*.cache
+*.mdmp
+*.log
+
+# --- OS ---
+Thumbs.db
+.DS_Store

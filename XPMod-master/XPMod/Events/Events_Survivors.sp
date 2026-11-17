@@ -1,0 +1,1031 @@
+Action Event_WeaponFire(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if (RunClientChecks(iClient) == false ||
+		g_iClientTeam[iClient] != TEAM_SURVIVORS ||
+		g_bTalentsConfirmed[iClient] == false)
+		return Plugin_Continue;
+	
+	char wclass[32];
+	GetEventString(hEvent,"weapon",wclass,32);
+	
+	switch(g_iChosenSurvivor[iClient])
+	{
+		case 0:		//Bill Firing
+		{
+		
+		}
+		case 1:		//Rochelle Firing
+		{
+			Event_WeaponFire_Rochelle(iClient, wclass)
+		}
+		case 2:		//Coach Firing
+		{
+		
+		}
+		case 3:		//Ellis Firing
+		{
+			EventsWeaponFire_Ellis(iClient);
+		}
+		case 4:		//Nick Firing
+		{
+			char strCurrentWeapon[32];
+			GetClientWeapon(iClient, strCurrentWeapon, sizeof(strCurrentWeapon));
+
+			int ActiveWeaponID = GetEntDataEnt2(iClient, g_iOffset_ActiveWeapon);
+			
+			// Handle Rambo Mode
+			if(g_bRamboModeActive[iClient] == true)
+			{
+				
+				if (RunEntityChecks(ActiveWeaponID) == false)
+					return Plugin_Continue;
+
+				// Check if the currently active weapon is the rambo weapon
+				if (ActiveWeaponID == g_iRamboWeaponID[iClient])
+				{
+					if (IsValidEntity(g_iRamboWeaponID[iClient]) && HasEntProp(g_iRamboWeaponID[iClient], Prop_Send, "m_nUpgradedPrimaryAmmoLoaded"))
+					{
+						SetEntData(g_iRamboWeaponID[iClient], g_iOffset_Clip1, 250, true);
+						SetEntProp(g_iRamboWeaponID[iClient], Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 251);
+					}
+				}
+				// Otherwise, store the ammo of the current weapon if its not rambo
+				else
+				{
+					StoreCurrentPrimaryWeaponAmmo(iClient);
+				}
+			}
+			//g_iPrimarySlotID[iClient] = GetPlayerWeaponSlot(iClient, 0);
+			
+			if((StrEqual(strCurrentWeapon, "weapon_pistol_magnum", false) == true) && (g_iMagnumLevel[iClient] > 0))
+			{
+				g_iActiveWeaponID[iClient] = GetEntDataEnt2(iClient, g_iOffset_ActiveWeapon);
+				g_iCurrentClipAmmo[iClient] = GetEntProp(g_iActiveWeaponID[iClient],Prop_Data,"m_iClip1");
+				if(g_iCurrentClipAmmo[iClient] > NICK_CLIP_SIZE_MAX_MAGNUM)
+				{
+					SetEntData(g_iActiveWeaponID[iClient], g_iOffset_Clip1, NICK_CLIP_SIZE_MAX_MAGNUM, true);
+				}
+			}
+
+			// Make all non magnum pistols automatic
+			if (StrEqual(strCurrentWeapon, "weapon_pistol", false) == true && g_iRiskyLevel[iClient] > 0)
+			{
+				SetEntProp(ActiveWeaponID, Prop_Send, "m_isHoldingFireButton", 0);
+			}
+			
+		}
+		case LOUIS:	// Louis Firing
+		{
+			char strCurrentWeapon[32];
+			GetClientWeapon(iClient, strCurrentWeapon, sizeof(strCurrentWeapon));
+
+			int ActiveWeaponID = GetEntDataEnt2(iClient, g_iOffset_ActiveWeapon);
+
+			// Make all non magnum pistols automatic
+			if (StrEqual(strCurrentWeapon, "weapon_pistol", false) == true &&
+				g_iLouisTalent1Level[iClient] > 0)
+				SetEntProp(ActiveWeaponID, Prop_Send, "m_isHoldingFireButton", 0);
+		}
+		case ZOEY:
+		{
+			RecordZoeyTriggerHappyShot(iClient, wclass);
+
+			char strCurrentWeapon[32];
+			GetClientWeapon(iClient, strCurrentWeapon, sizeof(strCurrentWeapon));
+
+			int ActiveWeaponID = GetEntDataEnt2(iClient, g_iOffset_ActiveWeapon);
+
+			if (StrEqual(strCurrentWeapon, "weapon_pistol", false) == true &&
+				g_iZoeyTalent2Level[iClient] > 0)
+				SetEntProp(ActiveWeaponID, Prop_Send, "m_isHoldingFireButton", 0);
+		}
+	}
+	
+	if(g_bClientIsReloading[iClient] == true)
+	{
+		g_iReloadFrameCounter[iClient]++;
+		char currentweapon[32];
+		GetClientWeapon(iClient, currentweapon, sizeof(currentweapon));
+		int ActiveWeaponID = GetEntDataEnt2(iClient, g_iOffset_ActiveWeapon);
+		int CurrentClipAmmo = GetEntProp(ActiveWeaponID,Prop_Data,"m_iClip1");
+		int iOffset_Ammo = FindDataMapInfo(iClient,"m_iAmmo");
+		
+		switch(g_iChosenSurvivor[iClient])
+		{
+			case BILL:		//Bill Reload
+			{
+				//if((((StrEqual(currentweapon, "weapon_rifle", false) == true) || (StrEqual(currentweapon, "weapon_rifle_sg552", false) == true)) && (CurrentClipAmmo == 50)) || ((StrEqual(currentweapon, "weapon_rifle_ak47", false) == true) && (CurrentClipAmmo == 40)) || ((StrEqual(currentweapon, "weapon_rifle_desert", false) == true) && (CurrentClipAmmo == 60)))
+				//if((StrEqual(currentweapon, "weapon_rifle", false) == true) || (StrEqual(currentweapon, "weapon_rifle_sg552", false) == true) || (StrEqual(currentweapon, "weapon_rifle_ak47", false) == true) || (StrEqual(currentweapon, "weapon_rifle_desert", false) == true) && (CurrentClipAmmo != 0))
+				if((StrEqual(currentweapon, "weapon_rifle", false) == true) || (StrEqual(currentweapon, "weapon_rifle_sg552", false) == true)|| (StrEqual(currentweapon, "weapon_rifle_ak47", false) == true) || (StrEqual(currentweapon, "weapon_rifle_desert", false) == true))
+				{
+					int iAmmo = GetEntData(iClient, iOffset_Ammo + 12);//for rifle (+12)
+					if(iAmmo >= (g_iPromotionalLevel[iClient]*20))
+					{
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, CurrentClipAmmo + (g_iPromotionalLevel[iClient]*20), true);
+						SetEntData(iClient, iOffset_Ammo + 12, iAmmo - (g_iPromotionalLevel[iClient]*20));
+						g_bClientIsReloading[iClient] = false;
+						g_iReloadFrameCounter[iClient] = 0;
+					}
+					else if(iAmmo < (g_iPromotionalLevel[iClient]*20))
+					{
+						int NewAmmo = ((g_iPromotionalLevel[iClient]*20) - iAmmo);
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, (CurrentClipAmmo + ((g_iPromotionalLevel[iClient]*20) - NewAmmo)), true);
+						SetEntData(iClient, iOffset_Ammo + 12, 0);
+						g_bClientIsReloading[iClient] = false;
+						g_iReloadFrameCounter[iClient] = 0;
+					}
+				}
+			}
+			case ROCHELLE:		//Rochelle Reload
+			{
+				if((StrEqual(currentweapon, "weapon_hunting_rifle", false) == true) && (g_iSilentLevel[iClient] > 0) && (CurrentClipAmmo != 0))
+				{
+					int iAmmo = GetEntData(iClient, iOffset_Ammo + 36);//for hunting rifle (+36)
+					if((iAmmo + CurrentClipAmmo) > (17 - (g_iSilentLevel[iClient] * 2)))
+					{
+						SetEntData(iClient, iOffset_Ammo + 36, iAmmo + (CurrentClipAmmo - (17 - (g_iSilentLevel[iClient] * 2))));
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, 17 - (g_iSilentLevel[iClient] * 2), true);
+					}
+					g_bClientIsReloading[iClient] = false;
+					g_iReloadFrameCounter[iClient] = 0;
+				}
+				if((StrEqual(currentweapon, "weapon_sniper_awp", false) == true) && (g_iSilentLevel[iClient] > 0) && (CurrentClipAmmo != 0))
+				{
+					int iAmmo = GetEntData(iClient, iOffset_Ammo + 40);//for AWP, Scout, and Military Sniper (+40)
+					if((iAmmo + CurrentClipAmmo) > 3)
+					{
+						SetEntData(iClient, iOffset_Ammo + 40, iAmmo + (CurrentClipAmmo - 3));
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, 3, true);
+					}
+					g_bClientIsReloading[iClient] = false;
+					g_iReloadFrameCounter[iClient] = 0;
+				}
+				if((StrEqual(currentweapon, "weapon_sniper_scout", false) == true) && (g_iSilentLevel[iClient] > 0) && (CurrentClipAmmo != 0))
+				{
+					int iAmmo = GetEntData(iClient, iOffset_Ammo + 40);//for AWP, Scout, and Military Sniper (+40)
+					if((iAmmo + CurrentClipAmmo) > (20 - g_iSilentLevel[iClient]))
+					{
+						SetEntData(iClient, iOffset_Ammo + 40, iAmmo + (CurrentClipAmmo - (20 - g_iSilentLevel[iClient])));
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, (20 - g_iSilentLevel[iClient]), true);
+					}
+					g_bClientIsReloading[iClient] = false;
+					g_iReloadFrameCounter[iClient] = 0;
+				}
+				if((StrEqual(currentweapon, "weapon_sniper_military", false) == true) && (g_iSilentLevel[iClient] > 0))
+				{
+					int iAmmo = GetEntData(iClient, iOffset_Ammo + 40);//for AWP, Scout, and Military Sniper (+40)
+					if(iAmmo >= (g_iSilentLevel[iClient] * 6))
+					{
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, CurrentClipAmmo + (g_iSilentLevel[iClient] * 6), true);
+						SetEntData(iClient, iOffset_Ammo + 40, iAmmo - (g_iSilentLevel[iClient] * 6));
+					}
+					else if(iAmmo < (g_iSilentLevel[iClient] * 6))
+					{
+						int NewAmmo = ((g_iSilentLevel[iClient] * 6) - iAmmo);
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, (CurrentClipAmmo + ((g_iSilentLevel[iClient] * 6) - NewAmmo)), true);
+						SetEntData(iClient, iOffset_Ammo + 40, 0);
+					}
+					g_bClientIsReloading[iClient] = false;
+					g_iReloadFrameCounter[iClient] = 0;
+				}
+			}
+			case COACH:		//Coach Reload
+			{
+				
+			}
+			case ELLIS:		//Ellis Reload
+			{
+				SetEllisClipSize(iClient, currentweapon, ActiveWeaponID, CurrentClipAmmo, iOffset_Ammo);
+			}
+			case NICK:		//Nicks Reload
+			{
+				if((StrEqual(currentweapon, "weapon_pistol_magnum", false) == true) && (g_iMagnumLevel[iClient] > 0))
+				{
+					SetEntData(ActiveWeaponID, g_iOffset_Clip1, NICK_CLIP_SIZE_MAX_MAGNUM, true);
+					g_bClientIsReloading[iClient] = false;
+					g_iReloadFrameCounter[iClient] = 0;
+				}
+				if((StrEqual(currentweapon, "weapon_pistol", false) == true) && (g_iRiskyLevel[iClient] > 0))
+				{
+					if(CurrentClipAmmo == 15)
+					{
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, CurrentClipAmmo + (g_iRiskyLevel[iClient] * 6), true);
+					}
+					else if(CurrentClipAmmo == 30)
+					{
+						SetEntData(ActiveWeaponID, g_iOffset_Clip1, CurrentClipAmmo + (g_iRiskyLevel[iClient] * 12), true);
+					}
+					g_bClientIsReloading[iClient] = false;
+					g_iReloadFrameCounter[iClient] = 0;
+				}
+			}
+			case LOUIS:
+			{
+				OGFSurvivorReload_Louis(iClient, currentweapon, ActiveWeaponID, CurrentClipAmmo, iOffset_Ammo);
+			}
+			case ZOEY:
+			{
+				OGFSurvivorReload_Zoey(iClient, currentweapon, ActiveWeaponID, CurrentClipAmmo, iOffset_Ammo);
+			}
+			}
+		g_bClientIsReloading[iClient] = false;
+		g_iReloadFrameCounter[iClient] = 0;
+		g_bCoachShotgunForceReload[iClient] = false;
+	}
+
+
+	if((g_iJamminLevel[iClient] == 5) && 
+		g_iEllisJamminGrenadeCounter[iClient] > 0 &&
+		(StrEqual(wclass,"pipe_bomb",false) == true || 
+		 StrEqual(wclass,"molotov",false) == true ||
+		 StrEqual(wclass,"vomitjar",false) == true))
+	{
+		CreateTimer(1.5, TimerEllisJamminGiveMolotov, iClient, TIMER_FLAG_NO_MAPCHANGE);
+		g_iEllisJamminGrenadeCounter[iClient]--;
+	}
+	if(g_iFireLevel[iClient] > 0 &&
+		g_iStashedInventoryMolotov[iClient] > 0 &&
+		(StrEqual(wclass,"pipe_bomb",false) == true ||
+		 StrEqual(wclass,"molotov",false) == true ||
+		 StrEqual(wclass,"vomitjar",false) == true))
+	{
+		CreateTimer(1.5, TimerGiveMolotovFromStashedInventory, iClient, TIMER_FLAG_NO_MAPCHANGE);
+		// Note: The timer itself reduces the stashed inventory.
+	}
+
+	if(g_iStrongLevel[iClient] > 0)
+	{
+		if(StrEqual(wclass, "vomitjar", false) == true || StrEqual(wclass, "molotov", false) == true || StrEqual(wclass, "pipe_bomb", false) == true)
+		{
+			if(g_iCoachCurrentGrenadeSlot[iClient] == 0)
+			{
+				g_bIsCoachGrenadeFireCycling[iClient] = true;
+				g_iEventWeaponFireCounter[iClient]++;
+				if(g_iEventWeaponFireCounter[iClient] == 1)
+				{
+					g_strCoachGrenadeSlot1 = "empty";
+					CreateTimer(1.5, TimerCoachGrenadeFireCycle, iClient, TIMER_FLAG_NO_MAPCHANGE);
+				}
+			}
+			else if(g_iCoachCurrentGrenadeSlot[iClient] == 1)
+			{
+				g_bIsCoachGrenadeFireCycling[iClient] = true;
+				g_iEventWeaponFireCounter[iClient]++;
+				if(g_iEventWeaponFireCounter[iClient] == 1)
+				{
+					g_strCoachGrenadeSlot2 = "empty";
+					CreateTimer(1.5, TimerCoachGrenadeFireCycle, iClient, TIMER_FLAG_NO_MAPCHANGE);
+				}
+			}
+			else if(g_iCoachCurrentGrenadeSlot[iClient] == 2)
+			{
+				g_bIsCoachGrenadeFireCycling[iClient] = true;
+				g_iEventWeaponFireCounter[iClient]++;
+				if(g_iEventWeaponFireCounter[iClient] == 1)
+				{
+					g_strCoachGrenadeSlot3 = "empty";
+					CreateTimer(1.5, TimerCoachGrenadeFireCycle, iClient, TIMER_FLAG_NO_MAPCHANGE);
+				}
+			}
+		}
+	}
+	return Plugin_Continue;
+}
+
+Action Event_ReviveBegin(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	RefreshManagedSurvivorReviveDuration(iClient);
+
+	if (RunClientChecks(iClient) &&
+		IsFakeClient(iClient) == false &&
+		g_bTalentsConfirmed[iClient] == true &&
+		g_iChosenSurvivor[iClient] == ZOEY &&
+		g_iClientTeam[iClient] == TEAM_SURVIVORS &&
+		g_iZoeyTalent1Level[iClient] > 0)
+	{
+		float fDefaultDuration = g_fDefaultSurvivorReviveDuration;
+		float fActualDuration = g_hCVar_SurvivorReviveDuration != null ?
+			g_hCVar_SurvivorReviveDuration.FloatValue :
+			GetManagedSurvivorReviveDuration(iClient);
+
+		if (fDefaultDuration > 0.0 && fActualDuration < fDefaultDuration)
+		{
+			int iSpeedPercent = RoundToNearest((1.0 - (fActualDuration / fDefaultDuration)) * 100.0);
+			PrintToChat(iClient, "\x03[XPMod]\x05 Zoey revive speed active: \x04%d%%\x05 faster (\x04%.1f\x05s from \x04%.1f\x05s).", iSpeedPercent, fActualDuration, fDefaultDuration);
+		}
+	}
+
+	return Plugin_Continue;
+}
+
+Action Event_ReviveEnd(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	SuppressNeverUsedWarning(hEvent, Event_name, dontBroadcast);
+	RefreshManagedSurvivorReviveDuration();
+	return Plugin_Continue;
+}
+
+Action Event_ReviveSuccess(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int iTarget = GetClientOfUserId(GetEventInt(hEvent, "subject"));
+	bool bWasHanging = GetEventBool(hEvent, "ledge_hang");
+	
+	//DebugLog(DEBUG_MODE_VERBOSE, "Event_ReviveSuccess, iClient %i, iTarget %i", iClient, iTarget);
+
+	g_bIsClientDown[iTarget] = false;
+	clienthanging[iTarget] = false;
+	EndSelfRevive(iTarget);
+	RefreshManagedSurvivorReviveDuration();
+
+	if(RunClientChecks(iTarget) == false)
+		return Plugin_Continue;
+
+	// Nicks Desperate Measures (dont run this on ledges)
+	if (!bWasHanging && SetAllNicksDesprateMeasuresStacks())
+		SetAllNicksDesprateMeasureSpeed("A teammate has been revived, your senses return to a weaker state.");
+
+	if (SetAllZoeyInstantInterventionDownedCount())
+		SetAllZoeyInstantInterventionSpeed("A teammate is back up. Instant Intervention slows to normal.");
+	
+	SetClientSpeed(iTarget);
+	SetClientRenderAndGlowColor(iTarget);
+
+	ApplyZoeyResilientResuscitation(iClient, iTarget);
+	ConvertZoeyReviveHealthToPermanent(iClient, iTarget);
+	HandleZoeyMedicalExpertiseReviveRewards(iClient, iTarget);
+
+	if(IsFakeClient(iClient) == true)
+		return Plugin_Continue;
+	
+	if (iClient > 0 && iClient <= MaxClients)
+	{
+		if (iClient != iTarget)
+		{
+			// Prevent XP farming by checking cooldown on the revive target
+			float fCurrentTime = GetGameTime();
+			if (fCurrentTime - g_fLastReviveXPTime[iTarget] >= REVIVE_XP_COOLDOWN)
+			{
+				g_fLastReviveXPTime[iTarget] = fCurrentTime;
+
+				g_iClientXP[iClient] += 50;
+				CheckLevel(iClient);
+
+				if(g_iXPDisplayMode[iClient] == 0)
+					ShowXPSprite(iClient, g_iSprite_50XP, iTarget);
+				else if(g_iXPDisplayMode[iClient] == 1)
+					PrintToChat(iClient, "\x03[XPMod] Revived a teammate. You gain 50 XP.");
+			}
+		}
+	}
+	return Plugin_Continue;
+}
+
+void Event_LedgeGrab(Handle hEvent, const char[] strName, bool bDontBroadcast)		//need an event for if the iClient gets up off the ledge to make clienthanging false
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	clienthanging[iClient] = true;
+
+	if (SetAllZoeyInstantInterventionDownedCount())
+		SetAllZoeyInstantInterventionSpeed("A teammate is hanging. Instant Intervention quickens you.");
+
+	// Self Revive Message
+	if (g_iSelfRevives[iClient] > 0 && IsFakeClient(iClient) == false)
+	{
+		PrintHintText(iClient, "You have %i Self Revive%s.\nHOLD USE to revive yourself.", g_iSelfRevives[iClient], g_iSelfRevives[iClient] != 1 ? "s" : "");
+	}
+}
+
+Action Event_InfectedDecap(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent,"userid"));
+	if(IsFakeClient(iClient) == false)
+	{
+		if(g_iClientTeam[iClient] == TEAM_SURVIVORS)
+		{
+			g_iClientXP[iClient] += 5;
+			CheckLevel(iClient);
+		}
+	}
+	return Plugin_Continue;
+}
+
+Action Event_PlayerIncap(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int incapper = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+	
+	DisableNinjaRope(iClient, false);
+	g_bIsClientDown[iClient] = true;
+	g_iJockeyVictim[incapper] = -1;
+	SetClientRenderAndGlowColor(iClient);
+	ApplyZoeySurvivorsWillIncapHealthBonus(iClient);
+	
+	if(RunClientChecks(iClient) == false)
+		return Plugin_Continue;
+	
+	if(g_bTalentsConfirmed[iClient] && g_iWillLevel[iClient]>0)
+	{
+		int currentHP = GetPlayerHealth(iClient);
+		SetPlayerHealth(iClient, incapper, currentHP + (g_iWillLevel[iClient] * 50));
+	}
+	if(incapper > 0)
+	{
+		if(g_iClientTeam[incapper] == TEAM_INFECTED)
+		{
+			if(g_iClientTeam[iClient] == TEAM_SURVIVORS)
+			{
+				if(IsClientInGame(incapper) == true)
+					if(IsFakeClient(incapper) == false)
+					{
+						g_iStat_ClientSurvivorsIncaps[incapper]++;
+						
+						g_iClientXP[incapper] += 200;
+						CheckLevel(incapper);
+						
+						if(g_iXPDisplayMode[incapper] == 0)
+							ShowXPSprite(incapper, g_iSprite_200XP_SI, iClient, 6.0);
+						else if(g_iXPDisplayMode[incapper] == 1)
+							PrintCenterText(incapper, "\x03[XPMod] Incapacitated %d.  You gain 200 XP", iClient);
+					}
+			}
+		}
+	}
+	if (g_iClientTeam[iClient] == TEAM_SURVIVORS)
+	{
+		// Update Nicks Desperate Measures Stacks
+		if (SetAllNicksDesprateMeasuresStacks())
+			SetAllNicksDesprateMeasureSpeed("A teammate has fallen, your senses sharpen.");
+
+		if (SetAllZoeyInstantInterventionDownedCount())
+			SetAllZoeyInstantInterventionSpeed("A teammate is down. Instant Intervention quickens you.");
+
+		for(int i=1;i<=MaxClients;i++)
+		{
+			if(g_bTalentsConfirmed[i] && g_iDiehardLevel[i] > 0)
+			{
+				if(RunClientChecks(i) && g_iClientTeam[i]==TEAM_SURVIVORS && IsPlayerAlive(i) == true)
+				{
+					if(g_bIsClientDown[i] == false)
+					{
+						int currentHP = GetPlayerHealth(i);
+						if((currentHP + (g_iDiehardLevel[i] * 9)) < (100 + (g_iWillLevel[i]*5) + (g_iDiehardLevel[i]*15)))
+							SetPlayerHealth(i, -1, currentHP + (g_iDiehardLevel[i] * 9));
+						else
+							SetPlayerHealth(i, -1, 100 + (g_iWillLevel[i]*5) + (g_iDiehardLevel[i]*15));
+						PrintHintText(i, "A teammate has fallen, you gain %d health and +%dhp to your healing pool", (g_iDiehardLevel[i] * 9), (g_iDiehardLevel[i] * 5));
+						g_iBillsTeamHealthPool+=(g_iDiehardLevel[i] * 5);
+					}
+				}
+			}
+		}
+		
+		if(g_iClientTeam[incapper] == TEAM_INFECTED)
+		{
+			//Spitter conjure CI
+			if(g_bTalentsConfirmed[incapper] && g_iPuppetLevel[incapper] > 0 && g_iInfectedCharacter[incapper] == SPITTER)
+			{
+				float xyzLocation[3];
+				GetEntPropVector(iClient, Prop_Send, "m_vecOrigin", xyzLocation);
+				
+				xyzLocation[2] += 10.0;
+				
+				WriteParticle(iClient, "spitter_conjure", 180.0, 7.0, xyzLocation);
+			
+				Handle hDataPackage = CreateDataPack();
+				WritePackCell(hDataPackage, incapper);
+				WritePackFloat(hDataPackage, xyzLocation[0]);
+				WritePackFloat(hDataPackage, xyzLocation[1]);
+				WritePackFloat(hDataPackage, xyzLocation[2]);
+				
+				CreateTimer(2.3, TimerConjureCommonInfected, hDataPackage);
+			}
+		}
+
+		// Self Revive Message
+		if (g_iSelfRevives[iClient] > 0 && IsFakeClient(iClient) == false)
+		{
+			PrintHintText(iClient, "You have %i Self Revive%s.\nHOLD USE to revive yourself.", g_iSelfRevives[iClient], g_iSelfRevives[iClient] != 1 ? "s" : "");
+		}
+
+		// This incap may have put the last standing survivor down - see Events_Main.sp
+		CheckForVersusSurvivorWipe();
+	}
+	return Plugin_Continue;
+}
+
+Action Event_HealBegin(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int iTarget = GetClientOfUserId(GetEventInt(hEvent, "subject"));
+
+	if (RunClientChecks(iClient) == false || RunClientChecks(iTarget) == false)
+		return Plugin_Continue;
+
+	g_iZoeySharingTrackedMedkitTargetUserId[iClient] = GetClientUserId(iTarget);
+	g_iZoeySharingTrackedMedkitTargetHealthBefore[iClient] = GetPlayerHealth(iTarget);
+
+	return Plugin_Continue;
+}
+
+Action Event_HealEnd(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	SuppressNeverUsedWarning(Event_name, dontBroadcast);
+
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	if (RunClientChecks(iClient))
+	{
+		g_iZoeySharingTrackedMedkitTargetUserId[iClient] = 0;
+		g_iZoeySharingTrackedMedkitTargetHealthBefore[iClient] = -1;
+	}
+	return Plugin_Continue;
+}
+
+Action Event_HealSuccess(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int target = GetClientOfUserId(GetEventInt(hEvent, "subject"));
+	int iZoeySharedMedkitHealAmount = 0;
+
+	
+	g_iKitsUsed++;
+	
+	if(RunClientChecks(iClient) == false || RunClientChecks(target) == false)
+		return Plugin_Continue;
+	
+	// Get the direct medkit heal amount first so Zoey's splash can mirror the actual heal.
+	int currentHP = GetPlayerHealth(target);
+	if (currentHP > 0)
+	{
+		int iDirectMedkitHealAmount = IsZoeyMedicalExpertiseActive(iClient) ? ZOEY_MEDICAL_EXPERTISE_MEDKIT_HEAL_AMOUNT : 100;
+		int iTargetHealthBeforeMedkit = currentHP;
+		if (g_iZoeySharingTrackedMedkitTargetUserId[iClient] == GetClientUserId(target) &&
+			g_iZoeySharingTrackedMedkitTargetHealthBefore[iClient] > 0)
+		{
+			iTargetHealthBeforeMedkit = g_iZoeySharingTrackedMedkitTargetHealthBefore[iClient];
+		}
+
+		SetPlayerHealth(target, -1, currentHP + iDirectMedkitHealAmount);
+		int iTargetHealthAfterMedkit = GetPlayerHealth(target);
+		int iSharedBaseMedkitHealAmount = iTargetHealthAfterMedkit > iTargetHealthBeforeMedkit ? iTargetHealthAfterMedkit - iTargetHealthBeforeMedkit : 0;
+		if (iSharedBaseMedkitHealAmount <= 0 &&
+			iTargetHealthBeforeMedkit >= GetPlayerMaxHealth(target))
+		{
+			iSharedBaseMedkitHealAmount = iDirectMedkitHealAmount;
+		}
+
+		if (iSharedBaseMedkitHealAmount > 0)
+		{
+			iZoeySharedMedkitHealAmount = RoundToFloor(float(iSharedBaseMedkitHealAmount) * GetZoeySharingIsCaringMedkitShareMultiplier(iClient));
+		}
+	}
+
+	g_iZoeySharingTrackedMedkitTargetUserId[iClient] = 0;
+	g_iZoeySharingTrackedMedkitTargetHealthBefore[iClient] = -1;
+	
+	if(g_bTalentsConfirmed[target] && g_iOverLevel[target] > 0)
+	{
+		int iCurrentHealth = GetPlayerHealth(target);
+		int iMaxHealth = GetPlayerMaxHealth(target);
+		if(iCurrentHealth < (iMaxHealth - 20.0))
+		{
+			if(g_bEllisOverSpeedIncreased[target])
+			{
+				g_bEllisOverSpeedIncreased[target] = false;
+
+				SetClientSpeed(target);
+			}
+		}
+		//else if(float(iCurrentHealth) + fTempHealth > (float(iMaxHealth) - 20.0))
+		if(iCurrentHealth >= (iMaxHealth - 20.0))
+		{
+			if(g_bEllisOverSpeedIncreased[target] == false)
+			{
+				g_bEllisOverSpeedIncreased[target] = true;
+
+				SetClientSpeed(target);
+			}
+		}
+
+		// Get all health converted to temp health for Ellis
+		ConvertEllisHealthToTemporary(target);
+	}
+	if(g_bTalentsConfirmed[iClient] && g_iChosenSurvivor[iClient] == 4)
+	{
+		if(g_iLeftoverLevel[iClient]>0)
+		{
+			int number;
+			number = GetRandomInt(1, 133);
+			
+			if(g_iLeftoverLevel[iClient]==1)
+			{
+				if(number<=8)
+				{
+
+					RunCheatCommand(iClient, "give", "give pain_pills");
+
+					PrintHintText(iClient, "You gain pain pills");
+				}
+				else if(number>8 && number <=14)
+				{
+
+					RunCheatCommand(iClient, "give", "give adrenaline");
+
+					PrintHintText(iClient, "You gain an adrenaline shot");
+				}
+				else if(number>14 && number <=18)
+				{
+
+					RunCheatCommand(iClient, "give", "give defibrillator");
+
+					PrintHintText(iClient, "You gain a defibrillator");
+				}
+				else if(number>18 && number <=20)
+				{
+
+					RunCheatCommand(iClient, "give", "give first_aid_kit");
+
+					PrintHintText(iClient, "You gain a medkit");
+				}
+				else
+					PrintHintText(iClient, "No luck this time, You gain no items");
+			}
+			else if(g_iLeftoverLevel[iClient]==2)
+			{
+				if(number<=16)
+				{
+
+					RunCheatCommand(iClient, "give", "give pain_pills");
+
+					PrintHintText(iClient, "You gain pain pills");
+				}
+				else if(number>16&& number <=28)
+				{
+
+					RunCheatCommand(iClient, "give", "give adrenaline");
+
+					PrintHintText(iClient, "You gain an adrenaline shot");
+				}
+				else if(number>28 && number <=36)
+				{
+
+					RunCheatCommand(iClient, "give", "give defibrillator");
+
+					PrintHintText(iClient, "You gain a defibrillator");
+				}
+				else if(number>36 && number <=40)
+				{
+
+					RunCheatCommand(iClient, "give", "give first_aid_kit");
+
+					PrintHintText(iClient, "You gain a medkit");
+				}
+				else
+					PrintHintText(iClient, "No luck this time, You gain no items");
+			}
+			else if(g_iLeftoverLevel[iClient]==3)
+			{
+				if(number<=24)
+				{
+
+					RunCheatCommand(iClient, "give", "give pain_pills");
+
+					PrintHintText(iClient, "You gain pain pills");
+				}
+				else if(number>24 && number <=42)
+				{
+
+					RunCheatCommand(iClient, "give", "give adrenaline");
+
+					PrintHintText(iClient, "You gain an adrenaline shot");
+				}
+				else if(number>42 && number <=54)
+				{
+
+					RunCheatCommand(iClient, "give", "give defibrillator");
+
+					PrintHintText(iClient, "You gain a defibrillator");
+				}
+				else if(number>54 && number <=60)
+				{
+
+					RunCheatCommand(iClient, "give", "give first_aid_kit");
+
+					PrintHintText(iClient, "You gain a medkit");
+				}
+				else
+					PrintHintText(iClient, "No luck this time, You gain no items");
+			}
+			else if(g_iLeftoverLevel[iClient]==4)
+			{
+				if(number<=32)
+				{
+
+					RunCheatCommand(iClient, "give", "give pain_pills");
+
+					PrintHintText(iClient, "You gain pain pills");
+				}
+				else if(number>32 && number <=56)
+				{
+
+					RunCheatCommand(iClient, "give", "give adrenaline");
+
+					PrintHintText(iClient, "You gain an adrenaline shot");
+				}
+				else if(number>56 && number <=72)
+				{
+
+					RunCheatCommand(iClient, "give", "give defibrillator");
+
+					PrintHintText(iClient, "You gain a defibrillator");
+				}
+				else if(number>72 && number <=80)
+				{
+
+					RunCheatCommand(iClient, "give", "give first_aid_kit");
+
+					PrintHintText(iClient, "You gain a medkit");
+				}
+				else
+					PrintHintText(iClient, "No luck this time, You gain no items");
+			}
+			else if(g_iLeftoverLevel[iClient]==5)
+			{
+				if(number<=40)
+				{
+
+					RunCheatCommand(iClient, "give", "give pain_pills");
+
+					PrintHintText(iClient, "You gain pain pills");
+				}
+				else if(number>40 && number <=70)
+				{
+
+					RunCheatCommand(iClient, "give", "give adrenaline");
+
+					PrintHintText(iClient, "You gain an adrenaline shot");
+				}
+				else if(number>70 && number <=90)
+				{
+
+					RunCheatCommand(iClient, "give", "give defibrillator");
+
+					PrintHintText(iClient, "You gain a defibrillator");
+				}
+				else if(number>90 && number <=100)
+				{
+
+					RunCheatCommand(iClient, "give", "give first_aid_kit");
+
+					PrintHintText(iClient, "You gain a medkit");
+				}
+				else
+					PrintHintText(iClient, "No luck this time, You gain no items");
+			}
+		}
+	}
+	for (int i = 1;i<=MaxClients;i++)		//For talents that change cvars get the highest level for each before unfreezing
+	{
+		if(RunClientChecks(i) && IsPlayerAlive(i) == true)
+		{
+			if((g_iSwindlerLevel[i]>0) && (g_bTalentsConfirmed[i] == true))
+			{
+				if(i!=iClient)
+				{
+					if(IsFakeClient(i) == false)
+					{
+						if(g_iClientTeam[i]==TEAM_SURVIVORS)
+						{
+							// Give nick more max health for each kit used, but cap it at +100 HP.
+							int iMaxHealth = GetPlayerMaxHealth(i);
+							if (iMaxHealth >= 200)
+								SetPlayerHealth(i, -1, (g_iSwindlerLevel[i] * 3), true, true);
+							else if (iMaxHealth + (g_iSwindlerLevel[i] * 3) <= 200)
+								SetPlayerMaxHealth(i, (g_iSwindlerLevel[i] * 3), true, true)
+							else
+								SetPlayerMaxHealth(i, 200)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (iZoeySharedMedkitHealAmount > 0)
+		ShareZoeyHealingToNearbyTeammates(iClient, iZoeySharedMedkitHealAmount, target);
+
+	if (iClient > 0 && iClient <= MaxClients)
+	{
+		if(IsFakeClient(iClient) == true)
+			return Plugin_Continue;
+		if (iClient != target)
+		{
+			g_iClientXP[iClient] += 50;
+			CheckLevel(iClient);
+			
+			if(g_iXPDisplayMode[iClient] == 0)
+				ShowXPSprite(iClient, g_iSprite_50XP, target);
+			else if(g_iXPDisplayMode[iClient] == 1)
+				PrintToChat(iClient, "\x03[XPMod] Healed a teammate. You gain 50 XP.");
+		}
+	}
+	return Plugin_Continue;
+}
+
+Action Event_DefibUsed(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iSubject = GetClientOfUserId(GetEventInt(hEvent,"subject"));
+	int iClient = GetClientOfUserId(GetEventInt(hEvent,"userid"));
+
+	SetAppropriateMaxHealthForPlayer(iSubject, false);
+	
+	GiveClientXP(iClient, 100, g_iSprite_100XP, iSubject, "Defibrillated Player.");
+	if(g_bTalentsConfirmed[iSubject] && g_iOverLevel[iSubject] > 0)
+	{
+		int iCurrentHealth = GetPlayerHealth(iSubject);
+		int iMaxHealth = GetPlayerMaxHealth(iSubject);
+		if(iCurrentHealth < (iMaxHealth - 20.0))
+		{
+			if(g_bEllisOverSpeedIncreased[iSubject])
+			{
+				g_bEllisOverSpeedIncreased[iSubject] = false;
+
+				SetClientSpeed(iSubject);
+			}
+		}
+		if(iCurrentHealth >= (iMaxHealth - 20.0))
+		{
+			if(g_bEllisOverSpeedIncreased[iSubject] == false)
+			{
+				g_bEllisOverSpeedIncreased[iSubject] = true;
+
+				SetClientSpeed(iSubject);
+			}
+		}
+	}
+	
+	// Update Nicks Desperate Measures Stacks
+	if (SetAllNicksDesprateMeasuresStacks())
+		SetAllNicksDesprateMeasureSpeed("A teammate has been brought back, your senses return to a weaker state.");
+
+	if (SetAllZoeyInstantInterventionDownedCount())
+		SetAllZoeyInstantInterventionSpeed("A teammate is back up. Instant Intervention slows to normal.");
+	
+	SetClientSpeed(iSubject);
+	ApplyZoeyResilientResuscitation(iClient, iSubject);
+	return Plugin_Continue;
+}
+
+Action Event_UpgradePackUsed(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent,"userid"));
+	
+	GiveClientXP(iClient, 25, g_iSprite_25XP, iClient, "Deployed iAmmo pack.");
+	return Plugin_Continue;
+}
+
+
+Action Event_PillsUsed(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	
+	if(RunClientChecks(iClient) == false)
+		return Plugin_Continue;
+
+	// Ellis
+	if (g_bTalentsConfirmed[iClient] && g_iJamminLevel[iClient] > 0)
+	{
+		if(g_iEllisJamminAdrenalineCounter[iClient] > 0)
+		{
+			g_iEllisJamminAdrenalineCounter[iClient]--;
+			RunCheatCommand(iClient, "give", "give adrenaline");
+		}
+	}
+	EventsPillsUsed_Ellis(iClient);
+
+	int i, iLoopedClientMaxHP, iLoopedClientCurrentHP;
+	for(i = 1; i <= MaxClients; i++)		//For all the Nicks on the team, increase their health for Enhanced Pain Killers Talent
+	{
+		if(g_bTalentsConfirmed[i] && g_iEnhancedLevel[i] > 0 && i != iClient && g_iClientTeam[i] == TEAM_SURVIVORS && IsClientInGame(i)==true && IsFakeClient(i) == false)
+		{
+			iLoopedClientMaxHP = GetPlayerMaxHealth(i);			
+			iLoopedClientCurrentHP = GetPlayerHealth(i);
+			if(g_iEnhancedLevel[i] < 5)
+			{
+				if(iLoopedClientCurrentHP + g_iEnhancedLevel[i] < iLoopedClientMaxHP)
+					SetPlayerHealth(i, -1, iLoopedClientCurrentHP + g_iEnhancedLevel[i]);
+				else
+					SetPlayerHealth(i, -1, iLoopedClientMaxHP);
+			}
+			else
+			{
+				if(iLoopedClientCurrentHP + g_iEnhancedLevel[i] < iLoopedClientMaxHP)
+					SetPlayerHealth(i, -1, iLoopedClientCurrentHP + g_iEnhancedLevel[i] + 3);
+				else
+					SetPlayerHealth(i, -1, iLoopedClientMaxHP);
+			}
+		}
+	}
+
+	EventsPillsUsed_Louis(iClient);
+
+	int iZoeySharedPillsHealTotal = ConsumeZoeySharingIsCaringTrackedBoostHealAmount(iClient);
+	if (iZoeySharedPillsHealTotal > 0)
+	{
+		iZoeySharedPillsHealTotal += ApplyZoeyMedicalExpertiseBonusTempHealth(iClient, iZoeySharedPillsHealTotal, ZOEY_MEDICAL_EXPERTISE_PILLS_HEAL_BONUS);
+		int iZoeySharedPillsHealAmount = RoundToFloor(float(iZoeySharedPillsHealTotal) * GetZoeySharingIsCaringPillsShareMultiplier(iClient));
+		if (iZoeySharedPillsHealAmount > 0)
+			ShareZoeyHealingToNearbyTeammates(iClient, iZoeySharedPillsHealAmount, iClient);
+	}
+		
+	return Plugin_Continue;
+}
+
+Action Event_AdrenalineUsed(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	
+	if(RunClientChecks(iClient) == false)
+		return Plugin_Continue;
+	
+	EventsAdrenalineUsed_Ellis(iClient);
+
+
+	// Nick
+	if(g_bTalentsConfirmed[iClient] && g_iEnhancedLevel[iClient] > 0 && IsFakeClient(iClient) == false)
+	{
+		int iMaxHealth = GetPlayerMaxHealth(iClient);
+		int iHealth = GetPlayerHealth(iClient);
+		float fTempHealth = GetEntDataFloat(iClient, g_iOffset_HealthBuffer);
+		
+		if(float(iHealth) + fTempHealth + (float(g_iEnhancedLevel[iClient]) * 6.0) <= float(iMaxHealth))
+			fTempHealth = fTempHealth + (float(g_iEnhancedLevel[iClient]) * 6.0);
+		else
+			fTempHealth = float(iMaxHealth) - float(iHealth);
+		
+		SetEntDataFloat(iClient,g_iOffset_HealthBuffer, fTempHealth ,true);
+	}
+
+	int i, iLoopedClientMaxHP, iLoopedClientCurrentHP;
+	for(i = 1; i <= MaxClients; i++)		//For all the Nicks on the team, increase their health for Enhanced Pain Killers Talent
+	{
+		if(g_bTalentsConfirmed[i] && g_iEnhancedLevel[i] > 0 && i != iClient && g_iClientTeam[i] == TEAM_SURVIVORS && IsClientInGame(i)==true && IsFakeClient(i) == false)
+		{
+			iLoopedClientMaxHP = GetPlayerMaxHealth(i);			
+			iLoopedClientCurrentHP = GetPlayerHealth(i);
+			if(g_iEnhancedLevel[i] < 5)
+			{
+				if(iLoopedClientCurrentHP + g_iEnhancedLevel[i] < iLoopedClientMaxHP)
+					SetPlayerHealth(i, -1, iLoopedClientCurrentHP + g_iEnhancedLevel[i]);
+				else
+					SetPlayerHealth(i, -1, iLoopedClientMaxHP);
+			}
+			else
+			{
+				if(iLoopedClientCurrentHP + g_iEnhancedLevel[i] < iLoopedClientMaxHP)
+					SetPlayerHealth(i, -1, iLoopedClientCurrentHP + g_iEnhancedLevel[i] + 3);
+				else
+					SetPlayerHealth(i, -1, iLoopedClientMaxHP);
+			}
+		}
+	}
+
+	EventsAdrenalineUsed_Louis(iClient);
+
+	int iZoeySharedAdrenalineHealTotal = ConsumeZoeySharingIsCaringTrackedBoostHealAmount(iClient);
+	if (iZoeySharedAdrenalineHealTotal > 0)
+	{
+		iZoeySharedAdrenalineHealTotal += ApplyZoeyMedicalExpertiseBonusTempHealth(iClient, iZoeySharedAdrenalineHealTotal, ZOEY_MEDICAL_EXPERTISE_ADRENALINE_HEAL_BONUS);
+		int iZoeySharedAdrenalineHealAmount = RoundToFloor(float(iZoeySharedAdrenalineHealTotal) * GetZoeySharingIsCaringAdrenalineShareMultiplier(iClient));
+		if (iZoeySharedAdrenalineHealAmount > 0)
+			ShareZoeyHealingToNearbyTeammates(iClient, iZoeySharedAdrenalineHealAmount, iClient);
+	}
+
+	return Plugin_Continue;
+}
+
+//For Pills and Shots
+Action Event_WeaponGiven(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	
+	int iGiver = GetClientOfUserId(GetEventInt(hEvent,"giver"));
+
+	EventsWeaponGiven_Ellis(iGiver);
+	EventsWeaponGiven_Louis(iGiver);
+	
+	return Plugin_Continue;
+}
+
+Action Event_ReceiveUpgrade(Handle hEvent, char[] Event_name, bool dontBroadcast)
+{
+	int iClient = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	char strUpgrade[32];
+	GetEventString(hEvent, "upgrade", strUpgrade, sizeof(strUpgrade));
+	
+	EventsReceiveUpgrade_Louis(iClient, strUpgrade);
+
+	return Plugin_Continue;
+}

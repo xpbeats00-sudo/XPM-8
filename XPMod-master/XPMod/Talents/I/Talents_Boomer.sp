@@ -1,0 +1,350 @@
+void TalentsLoad_Boomer(int iClient)
+{
+	if(g_bTalentsConfirmed[iClient] && g_iRapidLevel[iClient] > 0)
+		PrintToChat(iClient, "\x03[XPMod] \x05Your \x04Boomer Talents \x05have been loaded.");
+}
+
+void OnGameFrame_Boomer(int iClient)
+{
+	if (g_bTalentsConfirmed[iClient] == false)
+		return;
+
+	if(g_iAcidicLevel[iClient] > 0)
+	{
+		if(IsPlayerAlive(iClient) == true)
+		{
+			if(GetEntityFlags(iClient) & FL_ONGROUND)
+			{
+				if(g_bIsSuicideJumping[iClient] == true)
+				{
+					if(GetEntProp(iClient, Prop_Send, "m_zombieClass") == BOOMER)
+						ForcePlayerSuicide(iClient);
+				}
+			}
+		}
+	}
+}
+
+void Event_BoomerVomitOnPlayer(int iAttacker, int iVictim)
+{
+	if (RunClientChecks(iAttacker) == false)
+		return;
+
+	if(g_iInfectedCharacter[iAttacker] ==  BOOMER)
+	{
+		GiveClientXP(iAttacker, 15, g_iSprite_15XP_SI, iVictim, "Puked on a survivor.", false, 1.0);
+
+		if (IsFakeClient(iAttacker) == false && g_bTalentsConfirmed[iAttacker] == false)
+			return;
+		
+		if(g_iAcidicLevel[iAttacker] > 0)
+		{
+			SetEntProp(iVictim, Prop_Send, "m_iHideHUD", 64);
+			CreateTimer((g_iAcidicLevel[iAttacker] * 2.0), TimerGiveHudBack, iVictim, TIMER_FLAG_NO_MAPCHANGE); 
+		}
+		if(g_iNorovirusLevel[iAttacker] >= 5)
+		{
+			g_iVomitVictimCounter[iAttacker]++;
+			if(g_iVomitVictimCounter[iAttacker] >= 3)
+			{
+				if(IsClientInGame(iAttacker) == true)
+					if(IsFakeClient(iAttacker) == false)
+					{
+						int random = GetRandomInt(0, 5);
+						switch(random)
+						{
+							case 0:		//Give 3 extra bind 1 and bind 2 uses
+							{
+								PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. He gets an extra bind 1 and bind 2 charge.", iAttacker);
+								g_iClientBindUses_1[iAttacker] --;
+								g_iClientBindUses_2[iAttacker] --;
+							}
+							case 1:		//Set Health
+							{
+								if(IsPlayerAlive(iAttacker))
+								{
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. He becomes a \x04FAT Ninja!\x05", iAttacker);
+									SetPlayerMaxHealth(iAttacker, 750, false, true);
+									SetPlayerHealth(iAttacker, -1, 750)
+									g_bIsSuperSpeedBoomer[iAttacker] = true;
+									SetClientSpeed(iAttacker);
+									
+									CreateTimer(20.0, TimerResetFastBoomerSpeed, iAttacker, TIMER_FLAG_NO_MAPCHANGE);
+								}
+								else	//If their not alive then give them another reward
+								{
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. Common Infected temporarily do more damage.", iAttacker);
+									g_bCommonInfectedDoMoreDamage = true;
+									CreateTimer(20.0, TimerResetZombieDamage, 0, TIMER_FLAG_NO_MAPCHANGE);
+								}
+							}
+							case 2:		//Constant vomit for 8 seconds on last survivor hit
+							{
+								bool ok = false;
+								if(IsClientInGame(iVictim) == true)
+								{
+									if(IsPlayerAlive(iVictim) == true)
+									{
+										PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. \x04%N\x05 is vomiting uncontrollably. Necrofeasters can smell the meal.", iAttacker, iVictim);
+										CreateParticle("boomer_vomit", 2.0, iVictim, ATTACH_MOUTH, true);
+										g_bIsSurvivorVomiting[iVictim] = true;
+										g_iShowSurvivorVomitCounter[iVictim] = 20;
+										CreateTimer(1.0, TimerConstantVomitDisplay, iVictim, TIMER_FLAG_NO_MAPCHANGE);
+
+										// Convert all existing CI/UI into Necrofeasters and enable 10 second conversion window for new spawns
+										ConvertAllCIToNecrofeasters();
+										g_bBoomerNecrofeasterConversion = true;
+										CreateTimer(10.0, TimerResetBoomerNecrofeasterConversion, 0, TIMER_FLAG_NO_MAPCHANGE);
+
+										ok = true;
+									}
+								}
+								if(ok == false)	//If the iVictim is no longer alive, fat ninja instead
+								{
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. He becomes a \x04FAT Ninja!\x05", iAttacker);
+									SetPlayerMaxHealth(iAttacker, 750, false, true);
+									SetPlayerHealth(iAttacker, -1, 750);
+									g_bIsSuperSpeedBoomer[iAttacker] = true;
+									SetClientSpeed(iAttacker);
+									
+									CreateTimer(20.0, TimerResetFastBoomerSpeed, iAttacker, TIMER_FLAG_NO_MAPCHANGE);
+								}
+							}
+							case 3:		//Zombies do more damage
+							{
+								PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. Common Infected temporarily do more damage.", iAttacker);
+								g_bCommonInfectedDoMoreDamage = true;
+								CreateTimer(20.0, TimerResetZombieDamage, 0, TIMER_FLAG_NO_MAPCHANGE);
+							}
+							case 4:		//Crack Out
+							{
+								if((IsPlayerAlive(iVictim)) && (IsFakeClient(iVictim) == false))
+								{
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. \x04%N\x05 swallowed some pills he puked up.", iAttacker, iVictim);
+									PrintHintText(iVictim,"You swallowed some pills that %N puked up.", iAttacker);
+									
+									int red = GetRandomInt(0,255);
+									int green = GetRandomInt(0,255);
+									int blue = GetRandomInt(0,255);
+									int alpha = GetRandomInt(190,230);
+									
+									ShowHudOverlayColor(iVictim, red, green, blue, alpha, 700, FADE_IN);
+									
+									g_iDruggedRuntimesCounter[iVictim] = 0;
+
+									delete g_hTimer_DrugPlayer[iVictim];
+									g_hTimer_DrugPlayer[iVictim] = CreateTimer(2.5, TimerDrugged, iVictim, TIMER_REPEAT);
+									
+									WriteParticle(iVictim, "drugged_effect", 0.0, 30.0);
+								}
+								else
+								{
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. A hoard has been summoned.", iAttacker);
+									RunCheatCommand(iAttacker, "z_spawn_old", "z_spawn_old mob auto");
+								}
+							}
+							case 5:
+							{
+								if(IsPlayerAlive(iAttacker) == true)
+								{
+									//SetConVarInt(FindConVar("z_no_cull"), 1);
+									//SetConVarInt(FindConVar("z_common_limit"), 36);
+									
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. Jimmy Gibbs has come to play!", iAttacker);
+									float location[3], ang[3];
+									GetClientAbsOrigin(iAttacker, location);
+									GetClientEyeAngles(iAttacker, ang);
+									
+									location[0] = (location[0]+(50*(Cosine(DegToRad(ang[1])))));
+									location[1] = (location[1]+(50*(Sine(DegToRad(ang[1])))));
+									
+									int ticktime = RoundToNearest( GetGameTime() / GetTickInterval()) + 5;
+									
+									int i;
+									for(i = 0; i < 4; i++)
+									{
+										int zombie = CreateEntityByName("infected");
+										SetEntityModel(zombie, "models/infected/common_male_jimmy.mdl");
+										
+										SetEntProp(zombie, Prop_Data, "m_nNextThinkTick", ticktime);
+										CreateTimer(0.1, TimerSetMobRush, zombie);
+										
+										DispatchSpawn(zombie);
+										ActivateEntity(zombie);
+										location[0] += 10.0;
+										TeleportEntity(zombie, location, NULL_VECTOR, NULL_VECTOR);
+									}
+									
+									
+									
+									/*
+									delete g_hTimer_ResetInfectedCull;									
+									g_hTimer_ResetInfectedCull = CreateTimer(20.0, TimerResetInfectedCull);*/
+								}
+								else	//If their not alive then give them another reward
+								{
+									PrintToChatAll("\x03[XPMod] \x04%N\x05 vomited on 3 survivors. Common Infected temporarily do more damage.", iAttacker);
+									g_bCommonInfectedDoMoreDamage = true;
+									CreateTimer(20.0, TimerResetZombieDamage, 0, TIMER_FLAG_NO_MAPCHANGE);
+								}
+							}
+						}
+					}
+				g_iVomitVictimCounter[iAttacker] = -10;	//Set it to this so that they cant get it more than 1 time per vomit, if they hit 6 survivors
+			}
+			if(g_bNowCountingVomitVictims[iAttacker] == false)
+			{
+				g_bNowCountingVomitVictims[iAttacker] = true;
+				CreateTimer(9.0, TimerStopItCounting, iAttacker, TIMER_FLAG_NO_MAPCHANGE);
+			}
+			int rand;
+			rand = GetRandomInt(1, 100);
+			if(rand <= (g_iNorovirusLevel[iAttacker] * 4))
+			{
+				CreateParticle("boomer_vomit", 2.0, iVictim, ATTACH_MOUTH, true);
+				g_bIsSurvivorVomiting[iVictim] = true;
+				g_iShowSurvivorVomitCounter[iVictim] = 3;
+				CreateTimer(1.0, TimerConstantVomitDisplay, iVictim, TIMER_FLAG_NO_MAPCHANGE);
+			}
+		}
+	}
+}
+
+
+void EventsDeath_VictimBoomer(Handle hEvent, int iAttacker, int iVictim)
+{
+	if (g_iInfectedCharacter[iVictim] != BOOMER ||
+		g_iClientTeam[iVictim] != TEAM_INFECTED ||
+		g_bTalentsConfirmed[iVictim] == false ||
+		(g_iClientInfectedClass1[iVictim] != BOOMER &&
+		g_iClientInfectedClass2[iVictim] != BOOMER &&
+		g_iClientInfectedClass3[iVictim] != BOOMER) ||
+		RunClientChecks(iVictim) == false ||
+		IsFakeClient(iVictim) == true)
+		return;
+
+	SuppressNeverUsedWarning(hEvent, iAttacker, iVictim);
+
+	if(g_iAcidicLevel[iVictim] > 0)
+	{
+		float vector[3];
+		GetClientEyePosition(iVictim, vector);
+		int target;
+		for (target = 1; target <= MaxClients; target++)
+		{
+			if (RunClientChecks(target) &&
+				IsPlayerAlive(target) && 
+				g_iClientTeam[target] == TEAM_SURVIVORS)
+			{
+				if (g_bIsSuicideJumping[iVictim] == true)
+				{
+					float targetVector[3];
+					GetClientEyePosition(target, targetVector);
+					float distance = GetVectorDistance(targetVector, vector);
+					if(IsVisibleTo(vector, targetVector) == true)
+					{
+						if(distance < (200.0 + (float(g_iNorovirusLevel[iVictim]) * 40.0)))
+						{
+							DealDamage(target, iVictim, 10 + (g_iNorovirusLevel[iVictim] * 2));
+							SDKCall(g_hSDK_VomitOnPlayer, target, iVictim, true);
+							
+							//Fling Target Survivor (taken from "Tankroar 2.2" by Karma)
+							if (IsIncap(target) == false)
+							{
+								float svPos[3];
+								GetClientEyePosition(target, svPos);
+								
+								float distanceVec[3];
+								
+								distanceVec[0] = (vector[0] - svPos[0]);
+								distanceVec[1] = (vector[1] - svPos[1]);
+								distanceVec[2] = (vector[2] - svPos[2]);
+								
+								float addAmount[3], svVector[3], ratio[2];
+								float power =  100.0 + (float(g_iNorovirusLevel[iVictim]) * 30.0);
+								
+								ratio[0] =  distanceVec[0] / SquareRoot(distanceVec[1]*distanceVec[1] + distanceVec[0]*distanceVec[0]);//Ratio x/hypo
+								ratio[1] =  distanceVec[1] / SquareRoot(distanceVec[1]*distanceVec[1] + distanceVec[0]*distanceVec[0]);//Ratio y/hypo
+								
+								GetEntPropVector(target, Prop_Data, "m_vecVelocity", svVector);
+								
+								addAmount[0] = ( -1.0 * (ratio[0] * power) );//multiply negative = away from TANK. multiply positive = towards TANK.
+								addAmount[1] = ( -1.0 * (ratio[1] * power) );
+								addAmount[2] = power;
+								
+								SDKCall(g_hSDK_Fling, target, addAmount, 96, iVictim, 3.0);
+							}
+							
+							GiveClientXP(iVictim, 25, g_iSprite_25XP_SI, target, "Exploded on a survivor.");
+						}
+					}
+				}
+				else
+				{
+					float targetVector[3];
+					GetClientAbsOrigin(target, targetVector);
+					float distance = GetVectorDistance(targetVector, vector);
+					if(IsVisibleTo(vector, targetVector) == true && distance < 200.0)
+					{
+						DealDamage(target, iVictim, g_iAcidicLevel[iVictim]);
+						GiveClientXP(iVictim, 25, g_iSprite_25XP_SI, target, "Exploded on a survivor.");
+					}
+				}
+			}
+		}
+	}
+}
+
+void Event_AbilityUse_Boomer(int iClient, Handle hEvent)
+{
+	if (g_iInfectedCharacter[iClient] != BOOMER ||
+		g_bTalentsConfirmed[iClient] == false)
+		return;
+
+	char strAbility[20];
+	GetEventString(hEvent,"ability", strAbility, 20);
+	if (StrEqual(strAbility,"ability_vomit",false) == false)
+		return;
+	
+	g_bIsBoomerVomiting[iClient] = true;
+
+	// Reset after if not serving hot meal
+	if(g_bIsServingHotMeal[iClient] == true)
+		return;
+	
+	SetClientSpeed(iClient);
+
+	CreateTimer(1.5, TimerResetBoomerSpeed, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	if(g_iRapidLevel[iClient] > 0)
+		CreateTimer(1.0, TimerSetBoomerCooldown, iClient, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+}
+
+void ConvertAllCIToNecrofeasters()
+{
+	float xyzEntityLocation[3];
+
+	for (int iEntity = MaxClients + 1; iEntity < MAXENTITIES; iEntity++)
+	{
+		if (IsValidEntity(iEntity) == false)
+			continue;
+
+		if (IsCommonInfected(iEntity, "") == false)
+			continue;
+
+		if (IsCommonInfectedAlive(iEntity) == false)
+			continue;
+
+		// Skip if already enhanced CI
+		if (IsEnhancedCI(iEntity) == true)
+			continue;
+
+		// Get the location of the CI
+		GetEntPropVector(iEntity, Prop_Send, "m_vecOrigin", xyzEntityLocation);
+
+		// Kill the current CI entity
+		SetEntProp(iEntity, Prop_Data, "m_iHealth", 0);
+
+		// Spawn a Necrofeaster in its place (NECRO enhanced)
+		SpawnCIAroundLocation(xyzEntityLocation, 1, UNCOMMON_CI_RANDOM, CI_SMALL_OR_BIG_RANDOM, ENHANCED_CI_TYPE_NECRO, false);
+	}
+}

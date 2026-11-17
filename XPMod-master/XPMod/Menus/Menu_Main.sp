@@ -1,0 +1,837 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////         XPMod Menus         ///////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void ClosePanel(int iClient)
+{
+	if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return;
+
+	Panel panel = CreatePanel();
+	SetPanelTitle(panel, " ");
+	SendPanelToClient(panel, iClient, EmptyPanelHandler, 1);
+
+	delete panel;
+}
+
+void GetNewLinesToPushMenuDown(int iClient, char strStartingNewLines[32])
+{
+	if (g_iClientTeam[iClient] == TEAM_SPECTATORS)
+		strStartingNewLines = "\n \n \n \n \n ";
+	else if (g_iClientTeam[iClient] == TEAM_SURVIVORS && IsPlayerAlive(iClient) == false)
+		strStartingNewLines = "\n \n \n \n \n ";
+	else // Infected or alive survivor
+		strStartingNewLines = "\n \n";
+}
+
+void GetNewLinesToPushMenuUp(int iClient, char strEndingNewLines[32])
+{
+	if (g_iClientTeam[iClient] == TEAM_SPECTATORS)
+		strEndingNewLines = "\n \n \n \n ";
+	else if (g_iClientTeam[iClient] == TEAM_SURVIVORS && IsPlayerAlive(iClient) == false)
+		strEndingNewLines = "";
+	else // Infected or alive survivor
+		strEndingNewLines = "\n \n \n \n \n \n ";
+}
+
+void GetNewLinesAutomatic(const char[] text, char strNewLines[512], int iMenuOptionNewLines = 1, int iTargetNewLines = 35)
+{
+	strNewLines[0] = '\0';
+
+	int iTextNewLines = 0;
+	for (int i = 0; text[i] != '\0'; i++)
+		if (text[i] == '\n')
+			iTextNewLines++;
+
+	int iNewLineCount = iTargetNewLines - iMenuOptionNewLines - iTextNewLines;
+	if (iNewLineCount < 0)
+		iNewLineCount = 0;
+
+	for (int i = 0; i < iNewLineCount; i++)
+		StrCat(strNewLines, sizeof(strNewLines), "\n ");
+}
+
+void FormatXPDisplay(int iClient, char[] strXP, int iMaxLen)
+{
+	if (g_iClientLevel[iClient] >= 30)
+		FormatEx(strXP, iMaxLen, "%d", g_iClientXP[iClient]);
+	else
+		FormatEx(strXP, iMaxLen, "%d/%d", g_iClientXP[iClient], g_iClientNextLevelXPAmount[iClient]);
+}
+
+void XPModMenuDraw(int iClient)
+{
+	// For client hosted games
+	if (iClient == 0)
+		iClient=1;
+	
+	if (RunClientChecks(iClient))
+	{		
+		if(g_bClientLoggedIn[iClient] == false)
+		{
+			CreateNewUserMenuDraw(iClient);
+			return;
+		}
+		
+		// Turn off the client IDD menu in case they have it enabled
+		g_bClientIDDToggle[iClient] = false;
+		
+		// This will get the user data, then draw the menu once its returned
+		if(g_bClientLoggedIn[iClient] == true)
+			GetUserData(iClient, true, false, true);
+	}
+}
+
+
+//Menu Draw Functions                                                                                     
+//Top XPMod Menu Draw
+Action TopMenuDraw(int iClient) 
+{
+	RoundStatsPanel[iClient] = ROUND_STATS_PANEL_DONE;
+
+	g_bUserStoppedConfirmation[iClient] = true;
+
+	CheckLevel(iClient);
+	
+	Menu menu = CreateMenu(TopMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	// Title
+	char text[512], strNewLines[512], strXP[32];
+	FormatXPDisplay(iClient, strXP, sizeof(strXP));
+	if(g_iClientTeam[iClient] == TEAM_SURVIVORS)
+	{
+		char strClassName[20];
+		switch(g_iChosenSurvivor[iClient])
+		{
+			case BILL: 	strcopy(strClassName, sizeof(strClassName), "Support");
+			case ROCHELLE:	strcopy(strClassName, sizeof(strClassName), "Ninja");
+			case COACH:	strcopy(strClassName, sizeof(strClassName), "Berserker");
+			case ELLIS:	strcopy(strClassName, sizeof(strClassName), "Weapon Expert");
+			case NICK:	strcopy(strClassName, sizeof(strClassName), "Gambler");
+			case LOUIS:	strcopy(strClassName, sizeof(strClassName), "Disruptor");
+			case ZOEY:	strcopy(strClassName, sizeof(strClassName), "R.C. Medic");
+		}
+		FormatEx(text, sizeof(text), "%s				XP Mod\n			v %s\n▬▬▬▬▬▬▬▬▬▬▬▬▬\nLevel  %d  %s\nXP:   %s\n▬▬▬▬▬▬▬▬▬▬▬▬▬", strStartingNewLines, PLUGIN_VERSION, g_iClientLevel[iClient], strClassName, strXP);
+	}
+	else if(g_iClientTeam[iClient] == TEAM_INFECTED)
+		FormatEx(text, sizeof(text), "%s				XP Mod\n			v %s\n▬▬▬▬▬▬▬▬▬▬▬▬▬\nLevel  %d  Infected\nXP:   %s\n \nClass 1) %s\nClass 2) %s\nClass 3) %s\n▬▬▬▬▬▬▬▬▬▬▬▬▬", strStartingNewLines, PLUGIN_VERSION, g_iClientLevel[iClient], strXP, g_strClientInfectedClass1[iClient], g_strClientInfectedClass2[iClient], g_strClientInfectedClass3[iClient]);
+	else
+		FormatEx(text, sizeof(text), "%s				XP Mod\n			v %s\n▬▬▬▬▬▬▬▬▬▬▬▬▬\nLevel %d\nXP:     %s\n▬▬▬▬▬▬▬▬▬▬▬▬▬", strStartingNewLines, PLUGIN_VERSION, g_iClientLevel[iClient], strXP);
+	SetMenuTitle(menu, "%s", text);
+
+	// Calculate menu option newlines for automatic padding
+	// Base of 9 for the 10 option slots (excluding the final padded option)
+	int iMenuOptionNewLines = 9;
+	if(GetClientAdminLevel(iClient) > 0)
+		iMenuOptionNewLines += 1;
+	if(g_bTalentsConfirmed[iClient] == false)
+		iMenuOptionNewLines += 5;
+	GetNewLinesAutomatic(text, strNewLines, iMenuOptionNewLines, 37);
+
+	// Option 1
+	if (g_bTalentsConfirmed[iClient] == true)
+	{
+		AddMenuItem(menu, "option1", "Learn About Characters");
+	}
+	else
+	{
+		if (g_iClientTeam[iClient] == TEAM_SURVIVORS)
+			AddMenuItem(menu, "option1", "Change Your Survivor");
+		else if (g_iClientTeam[iClient] == TEAM_INFECTED)
+			AddMenuItem(menu, "option1", "Change Your Infected");
+		else
+			AddMenuItem(menu, "option1", "Change Your Characters");
+	}
+
+	// Options 2 and 3
+	AddMenuItem(menu, "option2", "Change Your Equipment");
+	AddMenuItem(menu, "option3", "Extras");
+
+	// Options 4 and 5
+	if(g_bTalentsConfirmed[iClient] == true)
+	{
+		AddMenuItem(menu, "option4", "Help\n ");
+		AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	}
+	else
+	{
+		AddMenuItem(menu, "option4", "Help\n \n   You need to Confirm\n   your Characters for\n   your abilities to work!");
+		AddMenuItem(menu, "option5", "* Confirm Characters *\n ");
+	}
+
+	// Options 6 and 7
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+
+	// Option 8
+	if (GetClientAdminLevel(iClient) > 0)
+		AddMenuItem(menu, "option8", "Admin Menu");
+	else
+		AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	// Option 9
+	AddMenuItem(menu, "option9", "", ITEMDRAW_NOTEXT);
+
+	// Option 10
+	char strFinalOptionText[512];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Exit the Menu\
+	\n▬▬▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option10", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+
+// Learn about characters
+Action TopChooseCharactersMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(TopChooseCharactersMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	\nChoose A Team\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 8);
+	AddMenuItem(menu, "option1", "Survivors");
+	AddMenuItem(menu, "option2", "Infected\n ");
+	AddMenuItem(menu, "option3", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Main Menu\n \nNote: Once you are\nconfirmed, you must\nwait until the next\nround to change any\nof your characters.\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+//Select Talents
+Action ExtrasMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(ExtrasMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s		XPMod Extras\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 8);
+	AddMenuItem(menu, "option1", "Change Team");
+	AddMenuItem(menu, "option2", "Statistics");
+	AddMenuItem(menu, "option3", "Options");
+	AddMenuItem(menu, "option4", "Get XPMod Addon");
+	AddMenuItem(menu, "option5", "XPMod Website");
+	AddMenuItem(menu, "option6", "Ban Me\n ");
+	// Prestige is only offered once a player has actually hit the level cap.
+	if (g_iClientLevel[iClient] >= 30)
+		AddMenuItem(menu, "option7", "Prestige");
+	else
+		AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	// Customize (name tag picker) unlocks at the same level as Prestige.
+	if (g_iClientLevel[iClient] >= 30)
+		AddMenuItem(menu, "option8", "Customize");
+	else
+		AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Main Menu\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Choose Team Menu Draw
+Action ChooseTeamMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(ChooseTeamMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	Choose A Team\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 5);
+	AddMenuItem(menu, "option1", "Survivors");
+	AddMenuItem(menu, "option2", "Infected");
+	AddMenuItem(menu, "option3", "Spectators\n ");
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Back\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+
+// Learn about characters
+Action ChooseStatisticsMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(ChooseStatisticsMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	\nChoose The Statistics You Want To See\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 2);
+	AddMenuItem(menu, "option1", "Last Round Stats");
+	AddMenuItem(menu, "option2", "Current Round Stats\n ");
+	AddMenuItem(menu, "option3", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Back\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+Action OptionMenuDraw(int iClient)
+{
+	Menu menu = CreateMenu(OptionMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "\
+	%s		 XP Mod Options\
+	\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+
+	// Calculate menu option newlines for automatic padding
+	int iMenuOptionNewLines = 8;
+	if(g_iXPDisplayMode[iClient] == 0)
+		iMenuOptionNewLines += 1; // "In Game" option has 1 extra newline for the addon note
+	GetNewLinesAutomatic(text, strNewLines, iMenuOptionNewLines);
+
+	if(g_iXPDisplayMode[iClient]==0)
+		AddMenuItem(menu, "option1", "XP Display Mode: In Game\n       - Requires XPMod Addon\n ");
+	else if(g_iXPDisplayMode[iClient]==1)
+		AddMenuItem(menu, "option1", "XP Display Mode: In Chat\n ");
+	else
+		AddMenuItem(menu, "option1", "XP Display Mode : Off\n ");
+
+	if(g_bAnnouncerOn[iClient]==false)
+		AddMenuItem(menu, "option2", "Turn Announcer On\n ");
+	else
+		AddMenuItem(menu, "option2", "Turn Announcer Off\n ");
+
+	if(g_bAutoConfirm[iClient]==true)
+		AddMenuItem(menu, "option3", "Turn Auto Confirm Off\n ");
+	else
+		AddMenuItem(menu, "option3", "Turn Auto Confirm On\n ");
+
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Back\
+	\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Menu Handler Functions                                                                                   
+//Top Menu Handler
+
+void TopChooseCharactersMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Choose Survivors
+			{
+				TopSurvivorMenuDraw(iClient);
+			}
+			case 1: //Choose Infected
+			{
+				TopInfectedMenuDraw(iClient);
+			}
+			case 8: //Back
+			{
+				TopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Top Menu For Everything
+void TopMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Choose Characters
+			{
+				if(g_bTalentsConfirmed[iClient] == false)
+				{
+					OpenCharacterSelectionPanel(iClient);
+
+					// Set this value to draw the confirmation once they close the motd and push a button
+					g_iOpenCharacterSelectAndDrawMenuState[iClient] = WAITING_ON_RELEASE_FOR_CONFIRM_MENU;
+				}
+				else
+				{
+					TopChooseCharactersMenuDraw(iClient);
+					// if (g_iClientTeam[iClient] == TEAM_SURVIVORS)
+					// 	TopSurvivorMenuDraw(iClient);
+					// else if (g_iClientTeam[iClient] == TEAM_INFECTED)
+					// 	TopInfectedMenuDraw(iClient);
+					// else
+					// 	TopChooseCharactersMenuDraw(iClient);
+				}
+				
+				
+				
+			}
+			case 1: //Choose Loadout
+			{
+				LoadoutMenuDraw(iClient);
+			}
+			case 2: //XPMod Extras
+			{
+				ExtrasMenuDraw(iClient);
+			}
+			case 3: //Help and HowTo
+			{
+				PrintXPModHelpMessage(iClient, 0);
+			}
+			case 4: //Confirm Talents
+			{
+				DrawConfirmationMenuToClient(iClient);
+			}
+			case 7: //Admin menu
+			{
+				if (GetClientAdminLevel(iClient) > 0)
+					AdminMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+void ExtrasMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Choose Team
+			{
+				ChooseTeamMenuDraw(iClient);
+			}
+			case 1: //Choose Stats Menu
+			{
+				ChooseStatisticsMenuDraw(iClient)
+			}
+			case 2: //Options
+			{
+				OptionMenuDraw(iClient);
+			}
+			case 3: //Get XPMod Addon
+			{
+				OpenMOTDPanel(iClient, "Download XPMod Addon", "\
+					You can download while in game by:\
+					\n \
+					\n1: Click on Join this server's Steam Group... at the bottom right.\
+					\n2: Click Get XPMod Addon.\
+					\n3: Click on + Subscribe.\
+					\n4: Relaunch Left4Dead2 or wait until next time.", MOTDPANEL_TYPE_TEXT);
+			}
+			case 4: //Website
+			{
+				OpenMOTDPanel(iClient, "Access XPMod.net", "\
+					On your phone or any web browser, go to:\
+					\n \
+					\nxpmod.net\
+					\n \
+					\n \
+					\nOr:\
+					\n 1: Click Join this server's Steam Group... at the bottom right\
+					\n 2: Click Visit XPMod.net on the left", MOTDPANEL_TYPE_TEXT);
+			}
+			case 5: //Ban Me
+			{
+				BanMeMenuDraw(iClient);
+			}
+			case 6: //Prestige
+			{
+				if (g_iClientLevel[iClient] >= 30)
+					PrestigeConfirmMenuDraw(iClient);
+				else
+					ExtrasMenuDraw(iClient);
+			}
+			case 7: //Customize
+			{
+				if (g_iClientLevel[iClient] >= 30)
+					CustomizeMenuDraw(iClient);
+				else
+					ExtrasMenuDraw(iClient);
+			}
+			case 8: //Back
+			{
+				TopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+Action PrestigeConfirmMenuDraw(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+
+	Menu menu = CreateMenu(PrestigeConfirmMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	\n		Prestige\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	\n \
+	\nResets your Level, XP, Talents,\
+	\nclass picks, and loadout back\
+	\nto the start.\
+	\n \
+	\nIn exchange you permanently\
+	\nkeep Prestige Rank %d,\
+	\nshown next to your name.\
+	\n \
+	\nThis cannot be undone.\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines, g_iClientPrestigePoints[iClient] + 1);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 8);
+
+	AddMenuItem(menu, "option1", "Yes, Prestige");
+	AddMenuItem(menu, "option2", "No, take me back\n ");
+	AddMenuItem(menu, "option3", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Cancel\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void PrestigeConfirmMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (itemNum == 0) //Yes, Prestige
+		{
+			if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true || g_iClientLevel[iClient] < 30)
+				return;
+
+			PrestigePlayer(iClient);
+		}
+		else //No / Cancel
+		{
+			ExtrasMenuDraw(iClient);
+		}
+	}
+}
+
+Action CustomizeMenuDraw(int iClient)
+{
+	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+
+	Menu menu = CreateMenu(CustomizeMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+	\n		Customize\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	\n \
+	\nPick a tag to show next\
+	\nto your name. Pick your\
+	\ncurrent tag again to remove it.\
+	\n▬▬▬▬▬▬▬▬▬▬▬\n",
+	strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 8);
+
+	// Up to 8 tags (options 1-8), option 9 is Back - same fixed 9-slot layout every other
+	// XPMod menu uses. Admin-only tags (see CUSTOM_TAG_ADMIN_ONLY) are hidden entirely
+	// from non-admins, same treatment Prestige gets below level 30.
+	int iTagCount = sizeof(CUSTOM_TAGS);
+	for (int i = 0; i < 8; i++)
+	{
+		char strOptionName[10], strItemText[64];
+		Format(strOptionName, sizeof(strOptionName), "option%d", i + 1);
+		if (i < iTagCount && (CUSTOM_TAG_ADMIN_ONLY[i] == false || GetClientAdminLevel(iClient) > 0))
+		{
+			if (g_iClientCustomTag[iClient] == i + 1)
+				Format(strItemText, sizeof(strItemText), "[%s] (current)", CUSTOM_TAGS[i]);
+			else
+				Format(strItemText, sizeof(strItemText), "[%s]", CUSTOM_TAGS[i]);
+			AddMenuItem(menu, strOptionName, strItemText);
+		}
+		else
+			AddMenuItem(menu, strOptionName, "", ITEMDRAW_NOTEXT);
+	}
+
+	char strFinalOptionText[150];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), "Back\
+	\n▬▬▬▬▬▬▬▬▬▬▬\
+	%s%s",
+	strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+void CustomizeMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true || g_iClientLevel[iClient] < 30)
+			return;
+
+		if (itemNum >= 0 && itemNum < 8 && itemNum < sizeof(CUSTOM_TAGS) &&
+			(CUSTOM_TAG_ADMIN_ONLY[itemNum] == false || GetClientAdminLevel(iClient) > 0))
+		{
+			// Picking your already-selected tag again clears it back to none.
+			g_iClientCustomTag[iClient] = (g_iClientCustomTag[iClient] == itemNum + 1) ? 0 : (itemNum + 1);
+			RenamePlayerWithLevelTags(iClient);
+			CustomizeMenuDraw(iClient);
+		}
+		else //Back
+		{
+			ExtrasMenuDraw(iClient);
+		}
+	}
+}
+
+//Choose Team Menu Handler
+void ChooseTeamMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		if(RunClientChecks(iClient) == false || IsFakeClient(iClient))
+			return;
+
+		if (g_bPlayerInTeamChangeCoolDown[iClient])
+		{
+			PrintToChat(iClient, "\x03[XPMod] \x05You can only change teams once every 3 seconds.");
+			ChooseTeamMenuDraw(iClient);
+			return;
+		}
+
+		if (itemNum == 8)
+		{
+			ExtrasMenuDraw(iClient);
+			return;
+		}
+
+		int iTeam = TEAM_SPECTATORS;
+
+		switch (itemNum)
+		{
+			case 0: iTeam = TEAM_SURVIVORS;
+			case 1: iTeam = TEAM_INFECTED;
+			case 2: iTeam = TEAM_SPECTATORS;
+		}
+		
+		if (SwitchPlayerTeam(iClient, iClient, iTeam) == false)
+			ChooseTeamMenuDraw(iClient);
+	}
+}
+
+void ChooseStatisticsMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Last Round Statistics
+			{
+				ShowRoundStatsPanelsToPlayer(iClient);
+			}
+			case 1: //Currnt Round Statistics
+			{
+				ShowTeamStatsToPlayer(iClient, iClient);
+			}
+			case 8: //Back
+			{
+				ExtrasMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+void OptionMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{			
+			case 0: //Change XP Display Mode
+			{
+				ChangeXPDisplayMode(iClient);
+				OptionMenuDraw(iClient);
+			}
+			case 1: //Toggle announcer
+			{
+				ToggleAnnouncerVoice(iClient);
+				OptionMenuDraw(iClient);
+			}
+			case 2: //Toggle Auto Confirm
+			{
+				ToggleAutoConfirm(iClient);
+				OptionMenuDraw(iClient);
+			}
+			case 8: //Back
+			{
+				ExtrasMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+
+int EmptyPanelHandler(Menu menu, MenuAction action, int param1, int param2)
+{
+	return 0;
+}

@@ -1,0 +1,629 @@
+void Handle2SecondClientTimers_Coach(int iClient)
+{
+	if (g_iHomerunLevel[iClient] == 5)
+		SetEntData(iClient, g_iOffset_ShovePenalty,0);
+
+	HandleCoachJetPack2SecondTick(iClient);
+}
+
+Action TimerStartJetPack(Handle timer, int iClient)
+{
+	if(RunClientChecks(iClient)==false || IsPlayerAlive(iClient)==false)
+		return Plugin_Stop;
+
+	float vec[3];
+	GetClientAbsOrigin(iClient, vec);
+	EmitSoundToAll(SOUND_JPIDLEREV, iClient, SNDCHAN_AUTO,	SNDLEVEL_NORMAL, SND_NOFLAGS, 0.3, SNDPITCH_NORMAL, -1, vec, NULL_VECTOR, true, 0.0);
+	g_bIsJetpackOn[iClient] = true;
+	PrintCoachJetpackFuelGauge(iClient)
+	return Plugin_Stop;
+}
+
+Action TimerGiveFirstExplosive(Handle timer, int iClient)
+{
+	if(RunClientChecks(iClient)==false || IsPlayerAlive(iClient)==false)
+		return Plugin_Stop;
+	
+	if(GetPlayerWeaponSlot(iClient, 2) == -1)
+	{
+		if(g_iStrongLevel[iClient]==1 || g_iStrongLevel[iClient]==2)
+		{
+			CreateTimer(3.0, TimerGiveExplosive, iClient, TIMER_FLAG_NO_MAPCHANGE);
+			g_iExtraExplosiveUses[iClient] = 2;
+		}
+		else if(g_iStrongLevel[iClient]==3 || g_iStrongLevel[iClient]==4)
+		{
+			CreateTimer(3.0, TimerGiveExplosive, iClient, TIMER_FLAG_NO_MAPCHANGE);
+			g_iExtraExplosiveUses[iClient] = 1;
+		}
+		else
+		{
+			CreateTimer(3.0, TimerGiveExplosive, iClient, TIMER_FLAG_NO_MAPCHANGE);
+			g_iExtraExplosiveUses[iClient] = 0;
+		}
+	}
+	return Plugin_Stop;
+}
+
+Action TimerGiveExplosive(Handle timer, int iClient)
+{
+	if(RunClientChecks(iClient) == false || IsPlayerAlive(iClient) == false)
+		return Plugin_Stop;
+	
+	g_iExtraExplosiveUses[iClient]++;
+	int randnum = GetRandomInt(0, 2);
+
+	switch(randnum)
+	{
+		case 0:	RunCheatCommand(iClient, "give", "give pipe_bomb");
+		case 1:	RunCheatCommand(iClient, "give", "give molotov");
+		case 2:	RunCheatCommand(iClient, "give", "give vomitjar");
+	}
+
+	
+	g_bExplosivesJustGiven[iClient] = false;
+	
+	return Plugin_Stop;
+}
+
+
+Action TimerCoachCIHeadshotSpeedReset(Handle timer, int iClient)
+{
+	g_iCoachCIHeadshotCounter[iClient]--;
+	if(g_iCoachCIHeadshotCounter[iClient] > 0)
+	{
+		CreateTimer(5.0, TimerCoachCIHeadshotSpeedReset, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	}
+	else
+	{
+		g_bCoachInCISpeed[iClient] = false;
+		SetClientSpeed(iClient);
+	}
+	return Plugin_Stop;
+}
+
+Action TimerCoachSIHeadshotSpeedReset(Handle timer, int iClient)
+{
+	//g_fCoachSIHeadshotSpeed[iClient] = 0.0;
+	
+	g_iCoachSIHeadshotCounter[iClient]--;
+	if(g_iCoachSIHeadshotCounter[iClient] > 0)
+	{
+		CreateTimer(10.0, TimerCoachSIHeadshotSpeedReset, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	}
+	else
+	{
+		g_bCoachInSISpeed[iClient] = false;
+		SetClientSpeed(iClient);
+	}
+	return Plugin_Stop;
+}
+
+Action TimerCoachRageReset(Handle timer, int iClient)
+{
+	g_bCoachRageIsActive[iClient] = false;
+	g_iCoachRageMeleeDamage[iClient] = 0;
+	g_bCoachRageIsInCooldown[iClient] = true;
+
+	// Cap dash charges at 2 if they had 3 during rage
+	if (g_iCoachDashChargeUses[iClient] < 0)
+		g_iCoachDashChargeUses[iClient] = 0;
+
+	PrintCoachDashCharges(iClient);
+
+	SetClientSpeed(iClient);
+	CreateTimer(180.0, TimerCoachRageCooldown, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	if (RunClientChecks(iClient) && IsFakeClient(iClient) == false)
+		PrintHintText(iClient, "Rage is in cooldown, healing and speed talents disabled for 3 minutes.");
+
+	return Plugin_Stop;
+}
+Action TimerCoachRageCooldown(Handle timer, int iClient)
+{
+	g_bCoachRageIsAvailable[iClient] = true;
+	g_bCoachRageIsInCooldown[iClient] = false;
+
+	SetClientSpeed(iClient);
+
+	return Plugin_Stop;
+}
+
+Action TimerCoachRageRegenTick(Handle timer, int iClient)
+{
+	if (RunClientChecks(iClient) == false || 
+		IsFakeClient(iClient) ||
+		IsPlayerAlive(iClient) == false ||
+		g_iClientTeam[iClient] != TEAM_SURVIVORS)
+		return Plugin_Stop;
+
+	if(g_iCoachRageRegenCounter[iClient] == 20)
+	{
+		g_iCoachRageRegenCounter[iClient] = 0;
+		return Plugin_Stop;
+	}
+	
+	if(g_iCoachRageRegenCounter[iClient] < 2)
+	{
+		int currentHP = GetPlayerHealth(iClient);
+		int maxHP = GetPlayerMaxHealth(iClient);
+		if(currentHP < (maxHP - 5))
+			SetPlayerHealth(iClient, -1, currentHP + 5);
+		else if(currentHP >= (maxHP - 5))
+			SetPlayerHealth(iClient, -1, maxHP);
+	}
+	else if(g_iCoachRageRegenCounter[iClient] < 5)
+	{
+		int currentHP = GetPlayerHealth(iClient);
+		int maxHP = GetPlayerMaxHealth(iClient);
+		if(currentHP < (maxHP - 4))
+			SetPlayerHealth(iClient, -1, currentHP + 4);
+		else if(currentHP >= (maxHP - 4))
+			SetPlayerHealth(iClient, -1, maxHP);
+	}
+	else if(g_iCoachRageRegenCounter[iClient] < 9)
+	{
+		int currentHP = GetPlayerHealth(iClient);
+		int maxHP = GetPlayerMaxHealth(iClient);
+		if(currentHP < (maxHP - 3))
+			SetPlayerHealth(iClient, -1, currentHP + 3);
+		else if(currentHP >= (maxHP - 3))
+			SetPlayerHealth(iClient, -1, maxHP);
+	}
+	else if(g_iCoachRageRegenCounter[iClient] < 14)
+	{
+		int currentHP = GetPlayerHealth(iClient);
+		int maxHP = GetPlayerMaxHealth(iClient);
+		if(currentHP < (maxHP - 2))
+			SetPlayerHealth(iClient, -1, currentHP + 2);
+		else if(currentHP >= (maxHP - 2))
+			SetPlayerHealth(iClient, -1, maxHP);
+	}
+	else
+	{
+		int currentHP = GetPlayerHealth(iClient);
+		int maxHP = GetPlayerMaxHealth(iClient);
+		if(currentHP < (maxHP - 1))
+			SetPlayerHealth(iClient, -1, currentHP + 1);
+		else if(currentHP >= (maxHP - 1))
+			SetPlayerHealth(iClient, -1, maxHP);
+	}
+	g_iCoachRageRegenCounter[iClient]++;
+	CreateTimer(1.0, TimerCoachRageRegenTick, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	return Plugin_Stop;
+}
+
+Action TimerCoachLungeCooldownReset(Handle timer, int iClient)
+{
+	g_bCoachLungeOnCooldown[iClient] = false;
+	return Plugin_Stop;
+}
+
+Action TimerCoachLungeToggleCooldown(Handle timer, int iClient)
+{
+	g_bCoachLungeToggleCooldown[iClient] = false;
+	return Plugin_Stop;
+}
+
+Action TimerCoachDashCooldownReset(Handle timer, int iClient)
+{
+	g_bCoachDashCoolingDown[iClient] = false;
+	return Plugin_Stop;
+}
+
+Action TimerCoachDashInactive(Handle timer, int iClient)
+{
+	g_bCoachDashActive[iClient] = false;
+	SetClientSpeed(iClient);
+	return Plugin_Stop;
+}
+
+Action TimerCoachDashChargeRegenerate(Handle timer, int iClient)
+{
+	if (g_iCoachDashChargeUses[iClient] > 0)
+	{
+		g_iCoachDashChargeUses[iClient]--;
+		PrintCoachDashCharges(iClient);
+	}
+
+	if (g_iCoachDashChargeUses[iClient] <= 0)
+	{
+		g_iCoachDashChargeUses[iClient] = 0;
+		g_hTimer_CoachDashRegenerate[iClient] = null;
+		return Plugin_Stop;
+	}
+
+	return Plugin_Continue;
+}
+
+Action TimerWreckingChargeRetrigger(Handle timer, int iClient)
+{
+	g_iWreckingBallChargeCounter[iClient] = 0;
+	g_bIsWreckingBallCharged[iClient] = true;
+	float vec[3];
+	GetClientAbsOrigin(iClient, vec);
+	int rand = GetRandomInt(1, 3);
+	switch(rand)
+	{
+		case 1: EmitSoundToAll(SOUND_COACH_CHARGE1, iClient, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vec, NULL_VECTOR, true, 0.0);
+		case 2: EmitSoundToAll(SOUND_COACH_CHARGE2, iClient, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vec, NULL_VECTOR, true, 0.0);
+		case 3: EmitSoundToAll(SOUND_COACH_CHARGE3, iClient, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vec, NULL_VECTOR, true, 0.0);
+	}
+	
+	g_iPID_CoachMeleeCharge1[iClient] = CreateParticle("coach_melee_charge_wepbone", 0.0, iClient, ATTACH_WEAPON_BONE);
+	g_iPID_CoachMeleeCharge2[iClient] = CreateParticle("coach_melee_charge_muzbone", 0.0, iClient, ATTACH_MUZZLE_FLASH);
+	PrintHintText(iClient, "Wrecking Ball has been recharged!");
+	return Plugin_Stop;
+}
+
+Action TimerCoachAssignGrenades(Handle timer, int iClient)
+{
+	int AssignGrenadeSlot1, AssignGrenadeSlot2, AssignGrenadeSlot3;
+	AssignGrenadeSlot1 = GetRandomInt(0,2);
+	AssignGrenadeSlot2 = GetRandomInt(0,2);
+	AssignGrenadeSlot3 = GetRandomInt(0,2);
+	if(!StrContains(g_strCoachGrenadeSlot1, "vomitjar", false) && !StrContains(g_strCoachGrenadeSlot1, "molotov", false) && !StrContains(g_strCoachGrenadeSlot1, "pipe_bomb", false))
+	{
+		switch (AssignGrenadeSlot1)
+		{
+			case 0:
+			{
+
+				RunCheatCommand(iClient, "give", "give vomitjar");
+				g_strCoachGrenadeSlot1 = "weapon_vomitjar";
+			}
+			case 1:
+			{
+
+				RunCheatCommand(iClient, "give", "give molotov");
+				g_strCoachGrenadeSlot1 = "weapon_molotov";
+			}
+			case 2:
+			{
+
+				RunCheatCommand(iClient, "give", "give pipe_bomb");
+				g_strCoachGrenadeSlot1 = "weapon_pipe_bomb";
+			}
+		}
+	}
+	if(g_iStrongLevel[iClient] == 2 || g_iStrongLevel[iClient] == 3)
+	{
+		switch (AssignGrenadeSlot2)
+		{
+			case 0:
+			{
+				g_strCoachGrenadeSlot2 = "weapon_vomitjar";
+			}
+			case 1:
+			{
+				g_strCoachGrenadeSlot2 = "weapon_molotov";
+			}
+			case 2:
+			{
+				g_strCoachGrenadeSlot2 = "weapon_pipe_bomb";
+			}
+		}
+	}
+	else if(g_iStrongLevel[iClient] == 4 || g_iStrongLevel[iClient] == 5)
+	{
+		switch (AssignGrenadeSlot2)
+		{
+			case 0:
+			{
+				g_strCoachGrenadeSlot2 = "weapon_vomitjar";
+			}
+			case 1:
+			{
+				g_strCoachGrenadeSlot2 = "weapon_molotov";
+			}
+			case 2:
+			{
+				g_strCoachGrenadeSlot2 = "weapon_pipe_bomb";
+			}
+		}
+		switch (AssignGrenadeSlot3)
+		{
+			case 0:
+			{
+				g_strCoachGrenadeSlot3 = "weapon_vomitjar";
+			}
+			case 1:
+			{
+				g_strCoachGrenadeSlot3 = "weapon_molotov";
+			}
+			case 2:
+			{
+				g_strCoachGrenadeSlot3 = "weapon_pipe_bomb";
+			}
+		}
+	}
+	return Plugin_Stop;
+}
+
+Action TimerCanCoachGrenadeCycleReset(Handle timer, int iClient)
+{
+	g_bCanCoachGrenadeCycle[iClient] = true;
+	return Plugin_Stop;
+}
+
+Action TimerCoachGrenadeFireCycle(Handle timer, int iClient)
+{
+	if(g_iStrongLevel[iClient] == 2 || g_iStrongLevel[iClient] == 3)
+	{
+		if(g_iCoachCurrentGrenadeSlot[iClient] == 0)
+		{
+			if(StrContains(g_strCoachGrenadeSlot2, "vomitjar", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+				RunCheatCommand(iClient, "give", "give vomitjar");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot2, "molotov", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+				RunCheatCommand(iClient, "give", "give molotov");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot2, "pipe_bomb", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+				RunCheatCommand(iClient, "give", "give pipe_bomb");
+			}
+		}
+		else if(g_iCoachCurrentGrenadeSlot[iClient] == 1)
+		{
+			if(StrContains(g_strCoachGrenadeSlot1, "vomitjar", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+				RunCheatCommand(iClient, "give", "give vomitjar");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot1, "molotov", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+				RunCheatCommand(iClient, "give", "give molotov");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot1, "pipe_bomb", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+				RunCheatCommand(iClient, "give", "give pipe_bomb");
+			}
+		}
+	}
+	else if(g_iStrongLevel[iClient] == 4 || g_iStrongLevel[iClient] == 5)
+	{
+		if(g_iCoachCurrentGrenadeSlot[iClient] == 0)
+		{
+			if(StrContains(g_strCoachGrenadeSlot2, "vomitjar", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+				RunCheatCommand(iClient, "give", "give vomitjar");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot2, "molotov", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+				RunCheatCommand(iClient, "give", "give molotov");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot2, "pipe_bomb", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+				RunCheatCommand(iClient, "give", "give pipe_bomb");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot2, "empty", false) != -1)
+			{
+				if(StrContains(g_strCoachGrenadeSlot3, "vomitjar", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 2;
+
+					RunCheatCommand(iClient, "give", "give vomitjar");
+				}
+				else if(StrContains(g_strCoachGrenadeSlot3, "molotov", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 2;
+
+					RunCheatCommand(iClient, "give", "give molotov");
+				}
+				else if(StrContains(g_strCoachGrenadeSlot3, "pipe_bomb", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 2;
+
+					RunCheatCommand(iClient, "give", "give pipe_bomb");
+				}
+			}
+		}
+		else if(g_iCoachCurrentGrenadeSlot[iClient] == 1)
+		{
+			if(StrContains(g_strCoachGrenadeSlot3, "vomitjar", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 2;
+
+				RunCheatCommand(iClient, "give", "give vomitjar");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot3, "molotov", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 2;
+
+				RunCheatCommand(iClient, "give", "give molotov");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot3, "pipe_bomb", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 2;
+
+				RunCheatCommand(iClient, "give", "give pipe_bomb");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot3, "empty", false) != -1)
+			{
+				if(StrContains(g_strCoachGrenadeSlot1, "vomitjar", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+					RunCheatCommand(iClient, "give", "give vomitjar");
+				}
+				else if(StrContains(g_strCoachGrenadeSlot1, "molotov", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+					RunCheatCommand(iClient, "give", "give molotov");
+				}
+				else if(StrContains(g_strCoachGrenadeSlot1, "pipe_bomb", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+					RunCheatCommand(iClient, "give", "give pipe_bomb");
+				}
+			}
+		}
+		else if(g_iCoachCurrentGrenadeSlot[iClient] == 2)
+		{
+			if(StrContains(g_strCoachGrenadeSlot1, "vomitjar", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+				RunCheatCommand(iClient, "give", "give vomitjar");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot1, "molotov", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+				RunCheatCommand(iClient, "give", "give molotov");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot1, "pipe_bomb", false) != -1)
+			{
+				g_iCoachCurrentGrenadeSlot[iClient] = 0;
+
+				RunCheatCommand(iClient, "give", "give pipe_bomb");
+			}
+			else if(StrContains(g_strCoachGrenadeSlot1, "empty", false) != -1)
+			{
+				if(StrContains(g_strCoachGrenadeSlot2, "vomitjar", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+					RunCheatCommand(iClient, "give", "give vomitjar");
+				}
+				else if(StrContains(g_strCoachGrenadeSlot2, "molotov", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+					RunCheatCommand(iClient, "give", "give molotov");
+				}
+				else if(StrContains(g_strCoachGrenadeSlot2, "pipe_bomb", false) != -1)
+				{
+					g_iCoachCurrentGrenadeSlot[iClient] = 1;
+
+					RunCheatCommand(iClient, "give", "give pipe_bomb");
+				}
+			}
+		}
+	}
+	g_bIsCoachGrenadeFireCycling[iClient] = false;
+	g_iEventWeaponFireCounter[iClient] = 0;
+	return Plugin_Stop;
+}
+
+// Chainsaw Massacre Timers
+Action TimerCoachChainsawMassacreEnd(Handle timer, int iClient)
+{
+	if(g_bCoachChainsawMassacreActive[iClient] == false)
+		return Plugin_Stop;
+
+	CoachEndChainsawMassacre(iClient);
+	return Plugin_Stop;
+}
+
+void CoachEndChainsawMassacre(int iClient)
+{
+	g_bCoachChainsawMassacreActive[iClient] = false;
+	g_iCoachChainsawMeleeDamage[iClient] = 0;
+	int iKills = g_iCoachChainsawKillCount[iClient];
+	g_iCoachChainsawKillCount[iClient] = 0;
+
+	// Start cooldown
+	g_bCoachChainsawCooldown[iClient] = true;
+	CreateTimer(COACH_CHAINSAW_COOLDOWN, TimerCoachChainsawCooldownReset, iClient, TIMER_FLAG_NO_MAPCHANGE);
+
+	// Remove chainsaw and restore original weapon after a short delay
+	if(RunClientChecks(iClient) && IsPlayerAlive(iClient))
+	{
+		// Remove the chainsaw from the player
+		int iChainsaw = GetPlayerWeaponSlot(iClient, 1);
+		if(iChainsaw != -1 && IsValidEntity(iChainsaw))
+		{
+			char strCheckClass[32];
+			GetEntityClassname(iChainsaw, strCheckClass, sizeof(strCheckClass));
+			if(StrEqual(strCheckClass, "weapon_chainsaw"))
+			{
+				RemovePlayerItem(iClient, iChainsaw);
+				RemoveEntity(iChainsaw);
+			}
+		}
+
+		// Restore saved weapon with a slight delay to ensure slot is clear
+		if(strlen(g_strCoachSavedMeleeWeapon[iClient]) > 0)
+			CreateTimer(0.1, TimerCoachChainsawRestoreWeapon, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	}
+
+	SetClientSpeed(iClient);
+
+	if(RunClientChecks(iClient) && IsFakeClient(iClient) == false)
+	{
+		PrintHintText(iClient, "Chainsaw Massacre ended! Kills: %d", iKills);
+		PrintToChat(iClient, "\x03[XPMod] \x05Chainsaw Massacre ended with \x04%d \x05kills!", iKills);
+	}
+}
+
+Action TimerCoachChainsawRestoreWeapon(Handle timer, int iClient)
+{
+	if(RunClientChecks(iClient) == false || IsPlayerAlive(iClient) == false)
+		return Plugin_Stop;
+
+	if(strlen(g_strCoachSavedMeleeWeapon[iClient]) > 0)
+	{
+		char strGiveCmd[64];
+		FormatEx(strGiveCmd, sizeof(strGiveCmd), "give %s", g_strCoachSavedMeleeWeapon[iClient]);
+		RunCheatCommand(iClient, "give", strGiveCmd);
+	}
+
+	return Plugin_Stop;
+}
+
+Action TimerCoachChainsawCooldownReset(Handle timer, int iClient)
+{
+	g_bCoachChainsawCooldown[iClient] = false;
+
+	if(RunClientChecks(iClient) && IsFakeClient(iClient) == false)
+		PrintHintText(iClient, "Chainsaw Massacre is ready!");
+
+	return Plugin_Stop;
+}
+
+Action TimerCoachChainsawRegenTick(Handle timer, int iClient)
+{
+	if(RunClientChecks(iClient) == false ||
+		IsPlayerAlive(iClient) == false ||
+		g_bCoachChainsawMassacreActive[iClient] == false)
+		return Plugin_Stop;
+
+	if(g_iCoachChainsawKillCount[iClient] > 0)
+	{
+		int iRegenAmount = g_iCoachChainsawKillCount[iClient] * COACH_CHAINSAW_REGEN_PER_KILL;
+		int currentHP = GetPlayerHealth(iClient);
+		int maxHP = GetPlayerMaxHealth(iClient);
+		if(currentHP < maxHP)
+		{
+			int iNewHP = currentHP + iRegenAmount;
+			if(iNewHP > maxHP)
+				iNewHP = maxHP;
+			SetPlayerHealth(iClient, -1, iNewHP);
+		}
+	}
+
+	CreateTimer(1.0, TimerCoachChainsawRegenTick, iClient, TIMER_FLAG_NO_MAPCHANGE);
+	return Plugin_Stop;
+}

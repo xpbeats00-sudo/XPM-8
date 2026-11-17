@@ -17,6 +17,7 @@ This repository is the server owner's own dedicated box: the XPMod plugin source
 - [Installation / Setup](#installation--setup)
 - [Usage](#usage)
 - [Components / Modules](#components--modules)
+- [Known Issues](#known-issues)
 - [Technologies Used](#technologies-used)
 - [Screenshots / Demo](#screenshots--demo)
 - [Contributing](#contributing)
@@ -220,6 +221,27 @@ Manages bot population to keep both 8-player teams filled. This session fixed a 
 
 ---
 
+## Known Issues
+
+A full 8-angle code review was run against the entire session's diff (correctness, removed-behavior, cross-file impact, reuse, simplification, efficiency, altitude, and CLAUDE.md conventions), followed by targeted verification of the highest-stakes candidates. The findings below are confirmed against the actual current source, not speculative — each was independently verified by re-reading the exact code path before being listed here.
+
+| # | Severity | Where | Issue |
+|---|---|---|---|
+| 1 | High | `GlobalVariables/Custom_Tags.sp` | Admin-only tags (`OWNER`/`ADMIN`) are only checked when *selected*, never again. A player who was briefly an admin keeps displaying the tag forever, even after their admin access is revoked — `RenamePlayerWithLevelTags` and the DB-load path never re-check `CUSTOM_TAG_ADMIN_ONLY`. |
+| 2 | High | `XP/XP_Management.sp` (`GiveClientMaxXPForTesting`) | The Admin Menu's "Dev: Max XP/Talents" button never checks `IsDevModeAllowedForCommand`/`xpm_dev_mode`, unlike every other dev command (`GiveXP`, `GiveXPbyID`, everything in `Misc/Testing.sp`). Any admin can max a player's level/talents live, even with dev mode off. |
+| 3 | High | `Binds/Binds.sp` (`ChatBindFallback`) | Swallows *any* chat message whose first word is exactly `bind1`, `bind2`, `skill1`, or `skill2` — with or without `!`. A message like "bind1 isn't working for me guys" is silently eaten entirely and fires the bind as a side effect. |
+| 4 | Medium | `AnyBotManager/ABM-master/.../abm.sp` (`g_bVsToppedUpThisRound`) | The guard added to stop an infinite retrigger bug is scoped for the whole round, not just the retrigger window. If humans disconnect mid-round after the team was already topped up once, the survivor slot stays bot-short until the *next* round. |
+| 5 | Medium | `Menus/Menu_Main.sp` (Customize menu) | Marks a tag "(current)" from stored state alone. If the assembled name would exceed L4D2's 31-byte cap, `RenamePlayerWithLevelTags` silently no-ops with no error — so the menu can confirm a tag that was never actually applied to the visible name. |
+| 6 | Low | `XP/XP_Management.sp` (Top10 badge) | The old Top10-leaderboard name badge was silently dropped when name-tag logic moved to Prestige icons. `GetClientTop10Position`/`GetTop10Symbol` have zero remaining callers, but `Database/Statistics.sp` still computes the underlying data every round for nothing. |
+| 7 | Open question | `Talents/S/Talents_Ellis.sp` vs. `Talents_Nick.sp` / `Talents_Zoey.sp` | Ellis's Bind1 ammo-resupply scaling was intentionally removed per an earlier bug report, but Nick's and Zoey's identical scaling formulas were deliberately left alone — still unresolved whether to match Ellis or keep the difference. |
+| 8 | Low (efficiency) | `Misc/InfectedClassCap.sp` (`PickInfectedClassUnderCap`) | Scans the full player roster once per SI class (6 scans) plus a redundant recount in `L4D_OnSpawnSpecial` — up to 7 full scans per spawn-cap check, on a hot path that fires continuously through a Versus round. |
+
+One thing the audit **ruled out**: a concern that the Special Infected class cap might be blind to AnyBotManager's bot-spawned Special Infected. That's refuted — L4D2 Special Infected are always real bot-clients with their own player slot (unlike Common Infected, which are true clientless NPCs), so `CountLiveInfectedOfClass` sees and constrains them correctly.
+
+None of the above have been fixed yet as of this writing — this table exists so they don't get lost.
+
+---
+
 ## Technologies Used
 
 | Technology | Role |
@@ -273,4 +295,4 @@ The server configuration files, and any genuinely new standalone files added for
 - **XPMod** — originally created by **Chris Pringle** and **Ezekiel Keener**. See [xpmod.net](http://xpmod.net) and the upstream [`XPMod-master/README.md`](XPMod-master/README.md) for the base mod's full feature set and credits.
 - **AnyBotManager** — originally created by **Victor "NgBUCKWANGS" Gonzalez**.
 - **left4dhooks** — the AlliedModders / SirPlease community, whose extension makes the Special Infected class cap, Versus round-end control, and other Director-level hooks in this project possible.
-- The 8v8 conversion, bug fixes, and every feature listed under [Features](#features) above were designed, implemented, tested, and deployed collaboratively across an extended pairing session between the server owner and Claude (Anthropic), working directly against the live dedicated server throughout.****
+- The 8v8 conversion, bug fixes, and every feature listed under [Features](#features) above were designed, implemented, tested, and deployed collaboratively across an extended pairing session between the server owner and Claude (Anthropic), working directly against the live dedicated server throughout.

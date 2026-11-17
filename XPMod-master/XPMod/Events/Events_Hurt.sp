@@ -1,0 +1,282 @@
+Action Event_PlayerHurt(Handle hEvent, const char[] strName, bool bDontBroadcast)
+{
+	int iAttacker = GetClientOfUserId(GetEventInt(hEvent,"attacker"));
+	int iVictim = GetClientOfUserId(GetEventInt(hEvent,"userid"));
+	int iDamage = GetEventInt(hEvent, "dmg_health");
+	int iDmgType = GetEventInt(hEvent, "type");
+
+	// Unfreeze player if they take any damage from SI
+	if(g_bFrozenByTank[iVictim] == true && 
+		g_iClientTeam[iVictim] == TEAM_SURVIVORS && 
+		g_iClientTeam[iAttacker] == TEAM_INFECTED)
+	{
+		//Set Player Velocity To Zero
+		TeleportEntity(iVictim, NULL_VECTOR, NULL_VECTOR, EMPTY_VECTOR);
+		// Unfreeze them
+		UnfreezePlayerByTank(iVictim);
+	}
+	
+	EventsHurt_GiveXP(hEvent, iAttacker, iVictim);
+
+	// Track damage taken by any human player from any source (split by team)
+	if (RunClientChecks(iVictim) && IsFakeClient(iVictim) == false)
+	{
+		if (g_iClientTeam[iVictim] == TEAM_SURVIVORS)
+			g_iStat_ClientDamageTakenSurvivor[iVictim] += iDamage;
+		else if (g_iClientTeam[iVictim] == TEAM_INFECTED)
+			g_iStat_ClientDamageTakenInfected[iVictim] += iDamage;
+	}
+
+	// Capture the players health for functionality like self revive on ledge
+	StorePlayerHealth(iVictim);
+	// This is to capture any extra damage that happens post player hurt
+	CreateTimer(0.1, TimerStorePlayerHealth, iVictim, TIMER_FLAG_NO_MAPCHANGE);
+
+	// Store the values for handling the DPS Meter
+	AddDamageToDPSMeter(iAttacker, iDamage);
+
+	// Play headshot ding sound if they got one
+	EventsHurt_PlayHeadshotDingSoundForHeadshots(hEvent, iAttacker, iVictim);
+
+	// Reduce damage for low level human survivor players that are not incaped
+	ReduceDamageTakenForNewPlayers(iVictim, iAttacker, iDamage, iDmgType);
+	EventsHurt_ApplyZoeyResilience(iAttacker, iVictim, iDamage, iDmgType);
+
+	
+	EventsHurt_IncreaseCommonInfectedDamage(iAttacker, iVictim);
+
+	// If iAttacker is a Common Infected, handle Enhanced CI abilites
+	if(iAttacker < 1 && iDmgType == DAMAGETYPE_INFECTED_MELEE)
+	{
+		// Get the actual entity id of the CI
+		int iCIEntity = GetEventInt(hEvent, "attackerentid");
+
+		if (g_iClientTeam[iVictim] == TEAM_SURVIVORS)
+		{
+			// Find if the Enhanced CI entity in the list
+			int iEnhancedCIIndex = FindIndexInArrayListUsingValue(g_listEnhancedCIEntities, iCIEntity, ENHANCED_CI_ENTITY_ID);
+
+			// If the Enhanced CI is in the list continue
+			if (iEnhancedCIIndex >= 0)
+			{
+				// Get the Enhanced Type
+				int iEnhancedCIType = g_listEnhancedCIEntities.Get(iEnhancedCIIndex, ENHANCED_CI_TYPE);
+				
+				switch (iEnhancedCIType)
+				{
+					case ENHANCED_CI_TYPE_FIRE: EnhanceCIHandleDamage_Fire(iCIEntity, iVictim);
+					case ENHANCED_CI_TYPE_ICE: EnhanceCIHandleDamage_Ice(iCIEntity, iVictim);
+					case ENHANCED_CI_TYPE_NECRO: EnhanceCIHandleDamage_Necro(iCIEntity, iVictim);
+					case ENHANCED_CI_TYPE_VAMPIRIC: EnhanceCIHandleDamage_Vampiric(iCIEntity, iVictim);
+				}
+			}
+		}
+
+		// No reason to continue beyond this point, because CI iAttacker will have no abilities
+		return Plugin_Continue;
+	}
+		
+
+	// Handle Survivors
+	if (g_iClientTeam[iAttacker] == TEAM_SURVIVORS)
+	{
+		// Testing purposes (remove later once talents are in for it)
+		MonitorVictimHealthMeterForSurvivorPlayer(iAttacker, iVictim);
+
+		switch(g_iChosenSurvivor[iAttacker])
+		{
+			case BILL:		EventsHurt_AttackerBill(hEvent, iAttacker, iVictim);
+			case ROCHELLE:	EventsHurt_AttackerRochelle(hEvent, iAttacker, iVictim);
+			case COACH:		EventsHurt_AttackerCoach(hEvent, iAttacker, iVictim);
+			case ELLIS:		EventsHurt_AttackerEllis(hEvent, iAttacker, iVictim);
+			case NICK:		EventsHurt_AttackerNick(hEvent, iAttacker, iVictim);
+			case LOUIS:		EventsHurt_AttackerLouis(hEvent, iAttacker, iVictim);
+			case ZOEY:		EventsHurt_AttackerZoey(hEvent, iAttacker, iVictim);
+		}
+	}
+	if (g_iClientTeam[iVictim] == TEAM_SURVIVORS)
+	{
+		switch(g_iChosenSurvivor[iVictim])
+		{
+			case BILL:		EventsHurt_VictimBill(hEvent, iAttacker, iVictim);
+			// case ROCHELLE:	EventsHurt_VictimRochelle(hEvent, iAttacker, iVictim);
+			// case COACH:		EventsHurt_VictimCoach(hEvent, iAttacker, iVictim);
+			case ELLIS:		EventsHurt_VictimEllis(hEvent, iAttacker, iVictim);
+			// case NICK:		EventsHurt_VictimNick(hEvent, iAttacker, iVictim);
+			// case LOUIS:		EventsHurt_VictimLouis(hEvent, iAttacker, iVictim);
+		}
+	}
+
+	// Handle Infected
+	if (g_iClientTeam[iAttacker] == TEAM_INFECTED)
+	{
+		switch(g_iInfectedCharacter[iAttacker])
+		{
+			case SMOKER: 	EventsHurt_AttackerSmoker(hEvent, iAttacker, iVictim);
+			// case BOOMER: 	EventsHurt_AttackerBoomer(hEvent, iAttacker, iVictim);
+			case HUNTER: 	EventsHurt_AttackerHunter(hEvent, iAttacker, iVictim);
+			case SPITTER: 	EventsHurt_AttackerSpitter(hEvent, iAttacker, iVictim);
+			case JOCKEY:	EventsHurt_AttackerJockey(hEvent, iAttacker, iVictim);
+			case CHARGER:	EventsHurt_AttackerCharger(hEvent, iAttacker, iVictim);
+			case TANK: 		EventsHurt_AttackerTank(hEvent, iAttacker, iVictim);
+		}
+
+		// Spitter acid pools persist after death, but g_iInfectedCharacter is
+		// reset to UNKNOWN_INFECTED on death, so talent goo effects stop applying.
+		// Catch lingering acid damage and route it to the Spitter handler.
+		if (g_iInfectedCharacter[iAttacker] == UNKNOWN_INFECTED)
+		{
+			char szWeapon[32];
+			GetEventString(hEvent, "weapon", szWeapon, sizeof(szWeapon));
+			if (StrEqual(szWeapon, "insect_swarm"))
+				EventsHurt_AttackerSpitter(hEvent, iAttacker, iVictim);
+		}
+	}
+	if (g_iClientTeam[iVictim] == TEAM_INFECTED)
+	{
+		switch(g_iInfectedCharacter[iVictim])
+		{
+			// case SMOKER: 	EventsHurt_VictimSmoker(hEvent, iAttacker, iVictim);
+			// case BOOMER: 	EventsHurt_VictimBoomer(hEvent, iAttacker, iVictim);
+			case HUNTER: 	EventsHurt_VictimHunter(hEvent, iAttacker, iVictim);
+			// case SPITTER: 	EventsHurt_VictimSpitter(hEvent, iAttacker, iVictim);
+			// case JOCKEY:	EventsHurt_VictimJockey(hEvent, iAttacker, iVictim);
+			case CHARGER:	EventsHurt_VictimCharger(hEvent, iAttacker, iVictim);
+			case TANK: 		EventsHurt_VictimTank(hEvent, iAttacker, iVictim);
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+void EventsHurt_GiveXP(Handle hEvent, int iAttacker, int iVictim)
+{
+	int iDmgType = GetEventInt(hEvent, "type");
+	int iDmgHealth = GetEventInt(hEvent,"dmg_health");
+
+	// Prevent Infinite Tank XP from stuck death animation
+	if (GetPlayerHealth(iVictim) < 0 || IsPlayerAlive(iVictim) == false)
+		return;
+
+	if (g_iClientTeam[iVictim] == TEAM_SURVIVORS && 
+		g_iClientTeam[iAttacker] == TEAM_INFECTED && 
+		IsClientInGame(iAttacker) == true && 
+		IsFakeClient(iAttacker) == false)		//Damage XP Give
+	{
+		char iWeaponClass[32];
+		GetEventString(hEvent,"weapon",iWeaponClass,32);
+		
+		if(iDmgType == 263168 || iDmgType == 265216)
+		{
+			g_iClientXP[iAttacker] += 3;
+			CheckLevel(iAttacker);
+			
+			if(g_iXPDisplayMode[iAttacker] == 0)
+				ShowXPSprite(iAttacker, g_iSprite_3XP_SI, iVictim, 1.0);
+		}
+		else if((g_iChokingVictim[iAttacker] > 0 && StrEqual(iWeaponClass, "smoker_claw") == true) ||
+			(g_iHunterShreddingVictim[iAttacker] > 0 && StrEqual(iWeaponClass, "hunter_claw") == true) || 
+			(g_iJockeyVictim[iAttacker] > 0 && StrEqual(iWeaponClass, "jockey_claw") == true))
+		{
+			g_iClientXP[iAttacker] += 10;
+			CheckLevel(iAttacker);
+			
+			if(g_iXPDisplayMode[iAttacker] == 0)
+				ShowXPSprite(iAttacker, g_iSprite_10XP_SI, iVictim, 1.0);
+		}
+		else if(StrEqual(iWeaponClass, "hunter_claw") == true || StrEqual(iWeaponClass, "smoker_claw") == true || StrEqual(iWeaponClass, "jockey_claw") == true || 
+				StrEqual(iWeaponClass, "boomer_claw") == true || StrEqual(iWeaponClass, "spitter_claw") == true || StrEqual(iWeaponClass, "charger_claw") == true  || 
+				StrEqual(iWeaponClass, "tank_claw") == true ||	StrEqual(iWeaponClass, "tank_rock") == true)
+		{
+			g_iClientXP[iAttacker] += 15;
+			CheckLevel(iAttacker);
+			
+			if(g_iXPDisplayMode[iAttacker] == 0)
+				ShowXPSprite(iAttacker, g_iSprite_15XP_SI, iVictim, 1.0);
+		}
+		
+		
+		//Limit because some attacks may give too many points
+		int iCappedDmg = iDmgHealth < 750 ? iDmgHealth : 750;
+		g_iStat_ClientDamageToSurvivors[iAttacker] += iCappedDmg;
+		TrackInfectedPerClassDamage(iAttacker, iCappedDmg);
+	}
+
+	//Give Assitance XP for Boomer
+	if(g_iVomitVictimAttacker[iVictim] > 0)
+	{
+		if(IsClientInGame(g_iVomitVictimAttacker[iVictim]) == true && IsFakeClient(g_iVomitVictimAttacker[iVictim]) == false)
+		{
+			// Only keep track of damage dealt for reward later if the assist is from an infected
+			if (g_iClientTeam[g_iVomitVictimAttacker[iVictim]] == TEAM_INFECTED)
+			{
+				int iCappedAssistDmg = iDmgHealth < 250 ? iDmgHealth : 250;
+				g_iStat_ClientDamageToSurvivors[g_iVomitVictimAttacker[iVictim]] += iCappedAssistDmg;
+				TrackInfectedPerClassDamage(g_iVomitVictimAttacker[iVictim], iCappedAssistDmg);
+			}
+			
+			char iMessage[64];
+			Format(iMessage, sizeof(iMessage), "Assited against %N.", iVictim);
+			GiveClientXP(g_iVomitVictimAttacker[iVictim], 3, g_iSprite_3XP_SI, iVictim, iMessage, true, 1.0);
+		}
+	}
+
+	// Subtract XP for Friendly Fire
+	if (iAttacker > 0 &&
+		IsFakeClient(iAttacker) == false &&
+		iAttacker != iVictim &&
+		g_iClientTeam[iAttacker] == g_iClientTeam[iVictim] &&
+		g_iChosenSurvivor[iAttacker] != NICK && // For Nick's Life Sharing
+		g_iClientXP[iAttacker] > g_iClientPreviousLevelXPAmount[iAttacker])
+	{
+		g_iClientXP[iAttacker] -= 2;
+		g_iStat_ClientFriendlyFireDamage[iAttacker] += iDmgHealth;
+		//PrintCenterText(iAttacker, "Attacked Team. -2 XP");
+	}
+}
+
+void EventsHurt_IncreaseCommonInfectedDamage(int iAttacker, int iVictim)
+{
+	if (iAttacker < 1 && // If iAttacker is a Common Infected
+		g_bCommonInfectedDoMoreDamage == true &&
+		g_iClientTeam[iVictim] == TEAM_SURVIVORS &&
+		RunClientChecks(iVictim) &&
+		IsPlayerAlive(iVictim))	
+	{
+		int hp = GetPlayerHealth(iVictim);
+		float fTempHealth = GetEntDataFloat(iVictim, g_iOffset_HealthBuffer);
+		if(fTempHealth > 0)
+		{
+			fTempHealth -= 1.0;
+			SetEntDataFloat(iVictim, g_iOffset_HealthBuffer, fTempHealth ,true);
+		}
+		else
+			SetPlayerHealth(iVictim, -1, hp - 1);
+	}
+}
+
+void TrackInfectedPerClassDamage(int iAttacker, int iDamage)
+{
+	switch (g_iInfectedCharacter[iAttacker])
+	{
+		case SMOKER:	g_iStat_ClientDamageSmoker[iAttacker] += iDamage;
+		case BOOMER:	g_iStat_ClientDamageBoomer[iAttacker] += iDamage;
+		case HUNTER:	g_iStat_ClientDamageHunter[iAttacker] += iDamage;
+		case SPITTER:	g_iStat_ClientDamageSpitter[iAttacker] += iDamage;
+		case JOCKEY:	g_iStat_ClientDamageJockey[iAttacker] += iDamage;
+		case CHARGER:	g_iStat_ClientDamageCharger[iAttacker] += iDamage;
+		case TANK:		g_iStat_ClientDamageTank[iAttacker] += iDamage;
+	}
+}
+
+void EventsHurt_PlayHeadshotDingSoundForHeadshots(Handle hEvent, int iAttacker, int iVictim)
+{
+	if (g_iClientTeam[iAttacker] != TEAM_SURVIVORS || 
+		g_iClientTeam[iVictim] != TEAM_INFECTED ||
+		IsClientInGame(iAttacker) == false ||
+		IsFakeClient(iAttacker) == true)
+		return;
+	
+	if (GetEventInt(hEvent, "hitgroup") == HITGROUP_HEAD)
+		EmitSoundToClient(iAttacker, SOUND_HEADSHOT);
+}

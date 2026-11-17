@@ -1,0 +1,466 @@
+//Louis Menu////////////////////////////////////////////////////////////////
+
+//Louis Menu Draw
+Action LouisMenuDraw(int iClient) 
+{
+	char text[512];
+
+
+	Menu menu = CreateMenu(LouisMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char strXP[32];
+	FormatXPDisplay(iClient, strXP, sizeof(strXP));
+	FormatEx(text, sizeof(text), "%sLevel %d	XP: %s\n=	=	=	=	=	=	=	=	=	=	=	=\n \n			Louis's Disruptor Talents\n ", strStartingNewLines, g_iClientLevel[iClient], strXP);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 7+3);
+
+	FormatEx(text, sizeof(text), "	[Level %d]	Manager's Prep", g_iLouisTalent1Level[iClient]);
+	AddMenuItem(menu, "option1", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	9mm Augmentation", g_iLouisTalent2Level[iClient]);
+	AddMenuItem(menu, "option2", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Time Dilation", g_iLouisTalent3Level[iClient]);
+	AddMenuItem(menu, "option3", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	BOOM HEADSHOT!", g_iLouisTalent4Level[iClient]);
+	AddMenuItem(menu, "option4", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	Neurosurgeon (Bind 1)           ", g_iLouisTalent5Level[iClient]);
+	AddMenuItem(menu, "option5", text);
+	FormatEx(text, sizeof(text), "	[Level %d]	PILLS HERE! (Bind 2)\n ", g_iLouisTalent6Level[iClient]);
+	AddMenuItem(menu, "option6", text);
+	
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\n \n=	=	=	=	=	=	=	=	=	=	=	=\
+		%s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//LouisTalent1MenuDraw
+Action LouisTalent1MenuDraw(int iClient) 
+{
+	char text[512];
+	Menu menu = CreateMenu(LouisTalent1MenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s			Manager's Prep (Level %d):\
+		\n \
+		\n Pistols, Not Magnum, Are Automatic\
+		\n +5 HP per Level\
+		\n \
+		\n SMG and Pistol (Not Magnum) Buffs:     \
+		\n 	- +5%%%% Reload Speed per Level\
+		\n ",
+		strStartingNewLines,
+		g_iLouisTalent1Level[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//LouisTalent2MenuDraw
+Action LouisTalent2MenuDraw(int iClient) 
+{
+	char text[512];
+
+
+	Menu menu = CreateMenu(LouisTalent2MenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s 		9mm Augmentation (Level %d):\
+		\n \
+		\n SMG and Pistol (Not Magnum) Buffs:\
+		\n 	- +20%%%% Damage per Level\
+		\n 	- +10 Clip Size per Level\
+		\n Hold [CROUCH] + [USE] to Toggle Laser Mode     \
+		\n \
+		\n Laser Mode On:\
+		\n	More Accurate\
+		\n	Lower Damage\
+		\n	Less Mobile\
+		\n \
+		\n Laser Mode Off:\
+		\n	Less Accurate\
+		\n	Higher Damage\
+		\n	More Mobile\
+		\n ",
+		strStartingNewLines,
+		g_iLouisTalent2Level[iClient]);
+
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//LouisTalent3MenuDraw
+Action LouisTalent3MenuDraw(int iClient) 
+{
+	char text[512];
+
+	Menu menu = CreateMenu(LouisTalent3MenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s 						Time Dilation (Level %d):\
+		\n \
+		\n [Press DIRECTION + Tap WALK] Move 30 ft in any direction.    \
+		\n	- 3 Uses. Uses regenerate over time.\
+		\n	- +1 Overload Use. Causes much longer cooldown period.\
+		\n	- -10%%%% Speed for 10 secs after each use.\
+		\n	- Progressively blinds you with each use. Fades over time.\
+		\n	- Cannot move through walls, CI, or SI.\
+		\n	- Travel less distance while severely hurt and limping.\
+		\n ",
+		strStartingNewLines,
+		g_iLouisTalent3Level[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//LouisTalent4MenuDraw
+Action LouisTalent4MenuDraw(int iClient) 
+{
+	char text[512];
+
+
+	Menu menu = CreateMenu(LouisTalent4MenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s 							BOOM HEADSHOT! (Level %d):\
+		\n \
+		\n Headshot/Body Damage Varies by Mode:\
+		\n 	- Laser On: +25%%%% / -100%%%%\
+		\n 	- Laser Off: +150%%%% / -50%%%%\
+		\n 	- Pistols: +100%%%% / -75%%%%\
+		\n \
+		\n Headshot Kill Bonuses:\
+		\n 	- CI: +1 HP, +1%%%% Speed for 60 Seconds, +15 Clip Ammo\
+		\n 	- SI: +5 HP, +5%%%% Speed for 60 Seconds, +50 Clip Ammo   \
+		\n 	- Louis Speed Cap: +10%%%% w/ Laser, +25%%%% w/o\
+		\n ",
+		strStartingNewLines,
+		g_iLouisTalent4Level[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//LouisTalent5MenuDraw
+Action LouisTalent5MenuDraw(int iClient) 
+{
+	char text[512];
+
+	Menu menu = CreateMenu(LouisTalent5MenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s 					Neurosurgeon (Level %d):\
+		\n \
+		\n Every Common Infected Headshot Kill Has A 5%%%% Chance To Drop:\
+		\n	- Pain Pills\
+		\n	- Adrenaline\
+		\n	- Bile Jar\
+		\n	- Pipe bomb\
+		\n Every Special Infected Headshot Kill Has A 1%%%% Chance To:\
+		\n	- Get %.1f Monero (XMR)\
+		\n	- Get Extra Warez Station\
+		\n \
+		\n Bind 1: w4R3z 574t10n u53r\
+		\n \
+		\n	Deploy and share your Warez with your team quickly and easily!\
+		\n ",
+		strStartingNewLines,
+		g_iLouisTalent5Level[iClient],
+		LOUIS_NEUROSURGEON_SI_XMR_REWARD_AMOUNT);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//LouisTalent6MenuDraw
+Action LouisTalent6MenuDraw(int iClient) 
+{
+	char text[512];
+	
+	Menu menu = CreateMenu(LouisTalent6MenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	FormatEx(text, sizeof(text), "\
+		%s 			PILLS HERE! (Level %d):\
+		\n \
+		\nStash Up To %i Extra Pill Bottles\
+		\n \
+		\nPress [ZOOM] With MedKit:\
+		\n	Convert MedKit Into 3 Pills\
+		\n \
+		\nOn Pills (Stacks):\
+		\n	-2 Temp HP/Lvl\
+		\n	+2%% Speed/Lvl for 90s\
+		\n	Louis Speed Cap:\
+		\n		+10%% w/ Laser, +25%% w/o\
+		\n	+3%% Dmg/Lvl for 90s\
+		\n	Max 3 stacks\
+		\n \n \
+		\nBind 2: H3D 5h0p:\
+		\n \
+		\nUnlock 5cR1PT k1Dd13 3xPl0172 m3Nu\
+		\n	+ %0.1f XMR / CI HS kill\
+		\n	+ %0.1f XMR / SI HS kill\
+		\n ",
+		strStartingNewLines,
+		g_iLouisTalent6Level[iClient],
+		LOUIS_STASHED_INVENTORY_MAX_PILLS,
+		LOUIS_HEADSHOT_XMR_AMOUNT_CI,
+		LOUIS_HEADSHOT_XMR_AMOUNT_SI);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Handlers//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Louis Menu Handler
+void LouisMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0:	LouisTalent1MenuDraw(iClient);
+			case 1:	LouisTalent2MenuDraw(iClient);
+			case 2:	LouisTalent3MenuDraw(iClient);
+			case 3:	LouisTalent4MenuDraw(iClient);
+			case 4:	LouisTalent5MenuDraw(iClient);
+			case 5:	LouisTalent6MenuDraw(iClient);
+			case 8: //Back
+			{
+				TopSurvivorMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//LouisTalent1 Menu Handler
+void LouisTalent1MenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+            {
+				LouisMenuDraw(iClient);
+            }
+        }
+    }
+}
+
+//LouisTalent2 Menu Handler
+void LouisTalent2MenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+            {
+				LouisMenuDraw(iClient);
+            }
+        }
+    }
+}
+
+//LouisTalent3 Menu Handler
+void LouisTalent3MenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+            {
+				LouisMenuDraw(iClient);
+            }
+        }
+    }
+}
+
+//LouisTalent4 Menu Handler
+void LouisTalent4MenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+            {
+				LouisMenuDraw(iClient);
+            }
+        }
+    }
+}
+
+//LouisTalent5 Menu Handler
+void LouisTalent5MenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+            {
+				LouisMenuDraw(iClient);
+            }
+        }
+    }
+}
+
+//LouisTalent6 Menu Handler
+void LouisTalent6MenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+            {
+				LouisMenuDraw(iClient);
+            }
+        }
+    }
+}

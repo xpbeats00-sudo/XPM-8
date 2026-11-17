@@ -1,0 +1,170 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			"Ability"
+			{
+				"windows"	"928"
+				"linux"		"948"
+			}
+			"SIAbilityNextActivation"
+			{
+				"windows"	"1084"
+				"linux"		"1104"
+			}
+		}
+		"Signatures"
+		{
+			// CTerrorPlayer::TakeOverBot(CTerrorPlayer *this, bool)
+			// _ZN13CTerrorPlayer11TakeOverBotEb
+
+			// Use Xref: aTakeoverSDIsTr ; "[TAKEOVER]: %s (%d) is trying to take o"...
+			// Signature for TakeOverBot:
+			/* 55 8B EC 81 EC ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 53 56 8D 85 */
+			"TakeOverBot"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer11TakeOverBotEb"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x2A\x2A\x53\x56\x8D"
+			}
+
+
+			// SurvivorBot::SetHumanSpectator(SurvivorBot *this, CTerrorPlayer *)
+			// _ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer
+
+			//
+			//
+			"SetHumanSpec"
+			{
+				"library"	"server"
+				"linux"		"@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
+				"windows"	"\x55\x8B\xEC\x56\x8B\xF1\x83\xBE\x2A\x2A\x2A\x2A\x00\x7E\x07\x32\xC0\x5E\x5D\xC2\x04\x00\x8B\x0D"
+			}
+
+
+			// CTerrorPlayer::RoundRespawn(CTerrorPlayer *this)
+			// _ZN13CTerrorPlayer12RoundRespawnEv
+
+			// CTerrorPlayer::RoundRespawn(CTerrorPlayer *this)
+			// CCSPlayer::RoundRespawn(CCSPlayer *this
+			// OutputDamageGiven
+			// aPlayerS1Dama_0 ; "Player: %s1 - Damage Given\n"
+			// 56 8B F1 E8 E8 A9 D4 FF  E8 53 1E FC FF 84 C0
+			// \x56\x8B\xF1\xE8\xE8\xA9\xD4\xFF\x\xE8\x53\x1E\xFC\xFF\x84\xC0
+			// \x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\xC0\x75\x2A
+			"RoundRespawn"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer12RoundRespawnEv"
+				"windows"	"\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\xC0\x75\x2A"
+			}
+
+
+			// CTerrorPlayer::OnPounceEnded(CTerrorPlayer *this)
+			// _ZN13CTerrorPlayer13OnPounceEndedEv
+
+			// Use xref: aPounce_end ; "pounce_end"
+			// \x55\x8B\xEC\x51\x53\x8B\xD9\x80\xBB\xAC\x3E\x00\x00\x00
+			"CTerrorPlayer::OnPounceEnd"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer13OnPounceEndedEv"
+				"windows"	"\x55\x8B\xEC\x51\x53\x8B\xD9\x80\xBB\xAC\x3E\x00\x00\x00"
+			}
+
+
+			// CTerrorPlayer::OnVomitedUpon(CTerrorPlayer *this, CTerrorPlayer *, bool)
+			// _ZN13CTerrorPlayer13OnVomitedUponEPS_b
+
+			// Use xref: aPlayervomitinf ; "PlayerVomitInFace"
+			// \x55\x8B\xEC\x83\xEC\x10\x53\x56\x57\x8B\xF1
+			"CTerrorPlayer_OnVomitedUpon"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer13OnVomitedUponEPS_b"
+				"windows" 	"\x55\x8B\xEC\x83\xEC\x10\x53\x56\x57\x8B\xF1"
+			}
+
+			/*
+			 *  CTerrorPlayer::OnITExpired(CTerrorPlayer *this)
+			 */
+			"CTerrorPlayer_OnITExpired"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer11OnITExpiredEv"
+				"windows"		"\x56\x57\x8B\x2A\xF3\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x0F\x2E\x2A\x2A\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x2A\x2A\x9F\xF6\x2A\x2A\x7B\x2A\x8B\x2A\x2A\x8B\x2A\x8D\x2A\x2A\x56\xFF\x2A\xF3\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xF3\x2A\x2A\x2A\x8B\x2A\x6A\x00"
+				/* 56 57 8B ? F3 ? ? ? ? ? ? ? 0F 2E ? ? ? ? ? 8D ? ? ? ? ? 9F F6 ? ? 7B ? 8B ? ? 8B ? 8D ? ? 56 FF ? F3 ? ? ? ? ? ? ? F3 ? ? ? 8B ? 6A 00 */
+				/* Search "PlayerVomitExpired" */
+			}
+
+
+			// CTerrorPlayer::Fling(CBaseEntity *, Vector *, int, CBaseCombatCharacter *, int)
+			// _ZN13CTerrorPlayer5FlingERK6Vector17PlayerAnimEvent_tP20CBaseCombatCharacterf
+
+			// USE:
+			// CTerrorPlayer::Fling(CBaseEntity *, Vector *, int, CBaseCombatCharacter *, int)
+			// CTerrorPlayer::OnRideEnded(CTerrorPlayer *this, CTerrorPlayer *)
+			// xref: aJockeyzombie_r ; "JockeyZombie.Ride"
+			// OR USE:
+			// CTerrorPlayer::Fling(CBaseEntity *, Vector *, int, CBaseCombatCharacter *, int)
+			// CTerrorPlayer::ReleaseTongueVictim(CTerrorPlayer *this, bool)
+			// xref: aTongue_relea_0 ; "tongue_release"
+			"CTerrorPlayer_Fling"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer5FlingERK6Vector17PlayerAnimEvent_tP20CBaseCombatCharacterf"
+				"windows" 	"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\xA8\x00\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x8B\x43\x10"
+			}
+
+
+			// CTerrorPlayer::SetClass(CBaseEntity *, int)
+			// _ZN13CTerrorPlayer8SetClassE15ZombieClassType
+
+			// Use xref: offset aWeapon_spitter ; "weapon_spitter_claw"
+			// Look for pretty large function that has all of the strings for all the infected classes
+			// 55 8B EC 56 8B F1 E8 ?? ?? ?? ?? 83 F8 03 0F ?? ?? ?? ?? ?? A1 ?? ?? ?? ?? 40
+			// \x55\x8B\xEC\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x83\xF8\x03\x0F\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x40
+			"SetClass"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer8SetClassE15ZombieClassType"
+				"windows"	"\x55\x8b\xec\x56\x8b\xf1\xe8****\x83\xf8*\x0f\x85****\xa1****\x40\xa3"
+			}
+
+
+			// CBaseAbility::CreateForPlayer(CBaseAbility *this, CTerrorPlayer *)
+			// _ZN12CBaseAbility15CreateForPlayerEP13CTerrorPlayer
+
+			// Use xref: offset aAbility_selfde ; "ability_selfdestruct"
+			// Look for pretty large function that has all of the strings for all the infected classes
+			// 55 8B EC 83 EC 0C 56 8B 75 08 85 F6 0F ?? ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 83 F8 03 0F ?? ?? ?? ??
+			// 55 8B EC 83 EC 0C 56 8B 75 08 85 F6 0F
+			// \x55\x8B\xEC\x83\xEC\x0C\x56\x8B\x75\x08\x85\xF6\x0F
+			"CreateAbility"
+			{
+				"library"	"server"
+				"linux"		"@_ZN12CBaseAbility15CreateForPlayerEP13CTerrorPlayer"
+				"windows"	"\x55\x8b\xec\x83\xec*\x56\x8b\x75*\x85\xf6\x0f\x84****\x8b\xce\xe8"
+			}
+
+
+			// Not used
+			//"BecomeGhost"
+			//{
+			//	"library"	"server"
+			//	"linux"		"@_ZN13CTerrorPlayer11BecomeGhostEb"
+			//	"windows"	"\x55\x8B\x2A\x53\x8B\x2A\x2A\x56\x53\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\x2A\x75\x2A\x83"
+			//}
+
+			//"State_Transition"
+			//{
+			//	"library"	"server"
+			//	"linux"		"@_ZN9CCSPlayer16State_TransitionE13CSPlayerState"
+			//	"windows"	"\x53\x8B\x5C\x24\x08\x56\x8B\xF1\x39\x9E\x2A\x2A\x00\x00\x74\x2A\x80\x7E\x2A\x00\x74\x2A\x80\x4E\x2A\x01\xEB"
+			//}
+
+		}
+	}
+}

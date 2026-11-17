@@ -1,0 +1,227 @@
+
+Action CreateNewUserMenuDraw(int iClient)
+{
+	if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+	
+	if(g_bTalentsConfirmed[iClient] == false)
+	{
+		Menu menu = CreateMenu(CreateNewUserMenuHandler);
+		SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+		char strStartingNewLines[32], strEndingNewLines[32];
+		GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+		GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+		char text[500], strNewLines[512];
+		FormatEx(text, sizeof(text),
+			"%s \
+			\nWelcome to XPMod!\n \
+			\nXPMod adds RPG elements to Left4Dead2, enabling you\
+			\nto gain powerful abilities and equipment by earning XP.\n \
+			\nThis is not a typical mod. It is complex with a lot of\
+			\ndepth that can take time to master. Those that choose\
+			\nto play XPMod will encounter unique challenges and\
+			\nbe rewarded with intense gameplay.\n \n \
+			\nStart playing XPMod?\n ",
+			strStartingNewLines);
+		SetMenuTitle(menu, "%s", text);
+		GetNewLinesAutomatic(text, strNewLines, 5);
+
+		AddMenuItem(menu, "option1", " Yes, Lets Go!");
+		AddMenuItem(menu, "option2", " Not Now.");
+		AddMenuItem(menu, "option3", "", ITEMDRAW_NOTEXT);
+		AddMenuItem(menu, "option4", "", ITEMDRAW_NOTEXT);
+		AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+		AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+		AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+		AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+		char strFinalOptionText[250];
+		Format(strFinalOptionText, sizeof(strFinalOptionText), " No, Ban Me.\n \n\
+			%s%s",
+			strNewLines, strEndingNewLines);
+		AddMenuItem(menu, "option9", strFinalOptionText);
+
+		SetMenuExitButton(menu, false);
+		DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	}
+	
+	return Plugin_Handled;
+}
+
+void CreateNewUserMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: // Yes, Create New User
+			{
+				if (iClient == 0)
+					iClient = 1;
+				
+				if (RunClientChecks(iClient) && g_bClientLoggedIn[iClient] == false)
+					CreateNewUser(iClient);
+			}
+			case 2: // Not now
+			{
+				ClosePanel(iClient);
+			}
+			case 8: // No, Ban Me
+			{
+				BanMeMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+Action QuickBan(int iClient, int args) {
+	if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+	BanMeMenuDraw(iClient);
+	return Plugin_Handled;		
+}
+
+Action BanMeMenuDraw(int iClient)
+{
+	if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+	
+	Menu menu = CreateMenu(BanMeMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[500], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+		\n=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=\n \
+		\nHow long would you like to be banned from this server?    \n ",
+		strStartingNewLines);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 5);
+
+	AddMenuItem(menu, "option1", " Nevermind!");
+	AddMenuItem(menu, "option2", " Kick Only");
+	AddMenuItem(menu, "option3", " 1 Day Ban");
+	AddMenuItem(menu, "option4", " 1 Week Ban");
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), " 1 Month Ban\n \
+		\n=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=\
+		%s%s",
+		strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option5", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+void BanMeMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: // Nevermind! (Dont ban or kick)
+			{
+				ClosePanel(iClient);
+			}
+			case 1: // Kick User Only
+			{
+				ClosePanel(iClient);
+				KickClient(iClient, "Have a nice day");
+			}
+			case 2: // Ban for 1 Day
+			{
+				BanConfirmMenu(iClient, 1440);
+			}
+			case 3: // Ban for 1 Week
+			{
+				BanConfirmMenu(iClient, 10080);
+			}
+			case 4: // Ban for 1 Month
+			{
+				BanConfirmMenu(iClient, 43200);
+			}
+		}
+	}
+}
+
+Action BanConfirmMenu(int iClient, int iBanDurationInMinutes)
+{
+	if(RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
+		return Plugin_Handled;
+	
+	Menu menu = CreateMenu(BanConfirmMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	// Store the value for use in the handler
+	g_iBanDurationInMinutes[iClient] = iBanDurationInMinutes;
+
+	char text[500], strNewLines[512];
+	FormatEx(text, sizeof(text), "%s\
+		\n=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=\n \
+		\nYou will be banned from all XPMod servers for %i days.    \n \
+		\nAre you sure?\n ",
+		strStartingNewLines,
+		(g_iBanDurationInMinutes[iClient] / 60 / 24) );
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 2);
+
+	AddMenuItem(menu, "option1", " Yes");
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText), " No\n \
+	\n=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=	=\
+		%s%s",
+		strNewLines, strEndingNewLines);
+	AddMenuItem(menu, "option2", strFinalOptionText);
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	
+	return Plugin_Handled;
+}
+
+
+void BanConfirmMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select)
+	{
+		switch (itemNum)
+		{
+			case 0: // Yes
+			{
+				ClosePanel(iClient);
+				// Add user to the bans table in the xpmod database
+				SQLAddBannedUserToDatabaseUsingClientID(iClient, g_iBanDurationInMinutes[iClient] * 60, "Self Ban", iClient);
+				// Ban the user, regardless of being able to add to the database or not
+				// Banning was changed to only kick, to fix issue with lingering bans after unban
+				// BanClient(iClient, g_iBanDurationInMinutes[iClient], BANFLAG_AUTHID, "XPMod Banned", "Banned from XPMod. Have a nice day");
+				KickClient(iClient, "You have been banned from XPMod servers")
+			}
+			case 1: // No
+			{
+				ClosePanel(iClient);
+			}
+		}
+	}
+}

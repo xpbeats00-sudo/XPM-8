@@ -1,0 +1,370 @@
+//Charger Menu
+
+//Charger Menu Draw
+Action ChargerTopMenuDraw(int iClient)
+{
+	CheckLevel(iClient);
+
+	Menu menu = CreateMenu(ChargerTopMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512], strXP[32];
+	FormatXPDisplay(iClient, strXP, sizeof(strXP));
+	FormatEx(text, sizeof(text), "%sLevel %d	XP: %s\n==========================\nCharger Talents:\n==========================\n \nGround 'n Pound: Level %d\nSpiked Carapace: Level %d\nHillbilly Madness!: Level %d\n \n", strStartingNewLines, g_iClientLevel[iClient], strXP, g_iGroundLevel[iClient], g_iSpikedLevel[iClient], g_iHillbillyLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines, 4+3);
+	
+	AddMenuItem(menu, "option1", "Ground 'n Pound");
+	AddMenuItem(menu, "option2", "Spiked Carapace");
+	AddMenuItem(menu, "option3", "Hillbilly Madness!\n ");
+	AddMenuItem(menu, "option4", "Choose The Charger\n ");
+	AddMenuItem(menu, "option5", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option6", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option7", "", ITEMDRAW_NOTEXT);
+	AddMenuItem(menu, "option8", "", ITEMDRAW_NOTEXT);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n==========================\
+		%s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option9", strFinalOptionText);
+		
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Talent Draws///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Ground 'n Pound Menu Draw
+Action GroundMenuDraw(int iClient)
+{
+	CheckLevel(iClient);
+	Menu menu = CreateMenu(GroundMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%sGround 'n Pound (Level %d)\
+		\n \
+		\nDeal More Punch, Pound, and Charge Impact Damage\
+		\n	All Damage Scales with Ground 'n Pound level\ 
+		\n ",
+		strStartingNewLines,
+		g_iGroundLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Spiked Carapace Menu Draw
+Action SpikedMenuDraw(int iClient)
+{
+	CheckLevel(iClient);
+	Menu menu = CreateMenu(SpikedMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%sSpiked Carapace (Level %d)\
+		\n \
+		\nReflect 1 Dmg/Lvl When Meleed\
+		\n+30 MaxHP/Lvl\
+		\n+33 HP/Lvl When Knocking Survivors\
+		\n \
+		\nHold [CROUCH] to Charge Uppercut, On Next Melee:\
+		\n	Throw Survivors Up, Fall Damage, Short Stun\
+		\n \
+		\n \
+		\nBind 1: Heavy Carry (3 Uses, 30s Cooldown)\
+		\n \
+		\n+10%%/Lvl to Carry Distance and Speed\
+		\nOn Next Charge, Reset Charge Cooldown\
+		\n ",
+		strStartingNewLines,
+		g_iSpikedLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Hillbilly Madness! Menu Draw
+Action HillbillyMenuDraw(int iClient)
+{
+	CheckLevel(iClient);
+	Menu menu = CreateMenu(HillbillyMenuHandler);
+
+	char strStartingNewLines[32], strEndingNewLines[32], strNewLines[512];
+	GetNewLinesToPushMenuDown(iClient, strStartingNewLines);
+	GetNewLinesToPushMenuUp(iClient, strEndingNewLines);
+
+	char text[512];
+	FormatEx(text, sizeof(text), "\
+		%sHillbilly Madness! (Level %d)\
+		\n \
+		\n+30 MaxHP per Lvl\
+		\n+3%% Move Speed & Carry Range per Lvl\
+		\n-1s Charge Cooldown Every Other Lvl\
+		\n \
+		\nOn Successful Grapple (Until Charge Ends):\
+		\n	Gain Invincibility\
+		\n	+5%%/Lvl of Dmg Taken Becomes Health\
+		\n \n \
+		\nBind 2: Earthquake (3 Uses)\
+		\n \
+		\nPunch ground to:\
+		\n	Damage Visible Survivors in Large Radius\
+		\n	Stun visible Survivors in Small Radius\
+		\n ",
+		strStartingNewLines,
+		g_iHillbillyLevel[iClient]);
+	SetMenuTitle(menu, "%s", text);
+	GetNewLinesAutomatic(text, strNewLines);
+
+	char strFinalOptionText[250];
+	Format(strFinalOptionText, sizeof(strFinalOptionText),
+		"Back\
+		\n %s%s",
+		strNewLines,
+		strEndingNewLines);
+	AddMenuItem(menu, "option1", strFinalOptionText);
+
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+//Choose Charger Menu Draw
+Action ChooseChargerClassMenuDraw(int iClient) 
+{
+
+	
+	CheckLevel(iClient);
+	Menu menu = CreateMenu(ChooseChargerClassMenuHandler);
+	SetMenuPagination(menu, MENU_NO_PAGINATION);
+	
+	char title[256];
+	FormatEx(title, sizeof(title), "==========================\n		Current Classes\n \nClass 1)	%s\nClass 2)	%s\nClass 3)	%s\n==========================\n \nPick a class to replace with the Charger:",g_strClientInfectedClass1[iClient], g_strClientInfectedClass2[iClient], g_strClientInfectedClass3[iClient]);
+	
+	SetMenuTitle(menu, "%s", title);
+	
+	AddMenuItem(menu, "option1", "Replace Class 1");
+	AddMenuItem(menu, "option2", "Replace Class 2");
+	AddMenuItem(menu, "option3", "Replace Class 3");
+	AddMenuItem(menu, "option9", "Back");
+	
+	SetMenuExitButton(menu, false);
+	DisplayMenu(menu, iClient, MENU_TIME_FOREVER);
+	return Plugin_Handled;
+}
+
+//Handlers/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Charger Top Menu Handler
+void ChargerTopMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Ground 'n Pound
+			{
+				GroundMenuDraw(iClient);
+			}
+			case 1: //Spiked Carapace
+			{
+				SpikedMenuDraw(iClient);
+			}
+			case 2: //Hillbilly Madness!
+			{
+				HillbillyMenuDraw(iClient);
+			}
+			case 3: //Select This Class
+			{
+				if((g_iClientInfectedClass1[iClient] != CHARGER) && (g_iClientInfectedClass2[iClient] != CHARGER) && (g_iClientInfectedClass3[iClient] != CHARGER))
+				{
+					if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED || g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED || g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+						ChooseChargerClassMenuDraw(iClient);
+					else
+					{
+						PrintToChat(iClient, "\x03[XPMod] \x05You cannot change your characters if your talents are confirmed for this round.");
+						ChargerTopMenuDraw(iClient);
+					}
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You already have the \x04Charger\x05 as one of your classes.");
+					ChargerTopMenuDraw(iClient);
+				}
+			}
+			case 8: //Back
+			{
+				TopInfectedMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Ground 'n Pound Menu Handler
+void GroundMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				ChargerTopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Spiked Carapace Menu Handler
+void SpikedMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				ChargerTopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Hillbilly Madness! Menu Handler
+void HillbillyMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Back
+			{
+				ChargerTopMenuDraw(iClient);
+			}
+		}
+	}
+}
+
+//Choose Charger Top Menu Handler
+void ChooseChargerClassMenuHandler(Menu menu, MenuAction action, int iClient, int itemNum)
+{
+	if (action == MenuAction_End)
+	{
+		delete menu;
+	}
+	else if (action == MenuAction_Select) 
+	{
+		switch (itemNum)
+		{
+			case 0: //Replace Class 1
+			{
+				if(g_iClientInfectedClass1[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass1[iClient]);
+					SetInfectedClassSlot(iClient, 1, CHARGER);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 1\x05 with the \x04Charger\x05.");
+					ChargerTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 1\x05 because it has already been confirmed.");
+					ChooseChargerClassMenuDraw(iClient);
+				}
+			}
+			case 1: //Replace Class 2
+			{
+				if(g_iClientInfectedClass2[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass2[iClient]);
+					SetInfectedClassSlot(iClient, 2, CHARGER);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 2\x05 with the \x04Charger\x05.");
+					ChargerTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 2\x05 because it has already been confirmed.");
+					ChooseChargerClassMenuDraw(iClient);
+				}
+			}
+			case 2: //Replace Class 3
+			{
+				if(g_iClientInfectedClass3[iClient] == UNKNOWN_INFECTED || g_bTalentsConfirmed[iClient] == false)
+				{
+					LevelDownInfectedTalent(iClient, g_iClientInfectedClass3[iClient]);
+					SetInfectedClassSlot(iClient, 3, CHARGER);
+					PrintToChat(iClient, "\x03[XPMod] \x05Replaced \x04class 3\x05 with the \x04Charger\x05.");
+					ChargerTopMenuDraw(iClient);
+				}
+				else
+				{
+					PrintToChat(iClient, "\x03[XPMod] \x05You cannot replace \x04class 3\x05 because it has already been confirmed.");
+					ChooseChargerClassMenuDraw(iClient);
+				}
+			}
+			default: //Back
+			{
+				ChargerTopMenuDraw(iClient);
+			}
+		}
+	}
+}
