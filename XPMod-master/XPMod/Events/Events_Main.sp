@@ -446,14 +446,19 @@ bool AreAllSurvivorsDownOrDead()
 {
 	bool bFoundSurvivor = false;
 
+	// Read team / incap / ledge state from the engine, not the cached
+	// g_iClientTeam / g_bIsClientDown / clienthanging flags - those go stale when
+	// bots and humans swap slots, which ended rounds early or never on a real wipe.
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (RunClientChecks(i) == false || g_iClientTeam[i] != TEAM_SURVIVORS)
+		if (RunClientChecks(i) == false || GetClientTeam(i) != TEAM_SURVIVORS)
 			continue;
 
 		bFoundSurvivor = true;
 
-		if (IsPlayerAlive(i) && g_bIsClientDown[i] == false && clienthanging[i] == false)
+		if (IsPlayerAlive(i) &&
+			GetEntProp(i, Prop_Send, "m_isIncapacitated") == 0 &&
+			GetEntProp(i, Prop_Send, "m_isHangingFromLedge") == 0)
 			return false;
 	}
 
@@ -851,6 +856,11 @@ void SetupUnfreezeGameTimer(float unfreezeWaitTime)
 
 public void OnClientPutInServer(int iClient)
 {
+	// Hook every client (bots included - they never fire player_connect_full)
+	// as soon as they exist. Unhook first so it can never double-hook.
+	SDKUnhook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+	SDKHook(iClient, SDKHook_OnTakeDamage, OnTakeDamage);
+
 	if (g_bGamePaused && IsFakeClient(iClient) == false)
 	{
 		UnpauseGame(iClient);

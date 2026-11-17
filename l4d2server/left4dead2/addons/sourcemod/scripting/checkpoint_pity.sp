@@ -9,109 +9,129 @@
 
 ConVar g_hEnabled;
 ConVar g_hGraceTime;
+ConVar g_hStartRatio;
 
-bool g_bGraceTimerActive = false;
-float g_fGraceEndTime = 0.0;
 Handle g_hCheckTimer = null;
 
-// Set once per round the first time we detect every living survivor is
-// in the checkpoint, so we log/act on that transition exactly once
-// instead of spamming every 2-second tick.
+bool g_bRoundOver = false;          // round_end seen, or we already forced the end
+bool g_bGraceTimerActive = false;
+float g_fGraceEndTime = 0.0;
+
+// Set once per round the first time every living survivor is in the checkpoint,
+// so that transition is logged/acted on exactly once.
 bool g_bAllPresentLogged = false;
 float g_fAllPresentSince = 0.0;
-bool g_bAllPresentForceTried = false;
-float g_fLastDiagnosticLog = 0.0;
 
 public Plugin myinfo =
 {
     name = "Checkpoint Pity Timer",
     author = "XP (built for your 8v8 XP server)",
-    description = "Forces checkpoint completion after a grace period if some survivors never reach the safe room",
-    version = "1.0",
+    description = "Forces checkpoint completion after a grace period once most survivors have reached the safe room",
+    version = "2.0",
     url = ""
 };
 
 public void OnPluginStart()
 {
-    g_hEnabled = CreateConVar("sm_checkpointpity_enabled", "1", "Enable checkpoint pity timer");
-    g_hGraceTime = CreateConVar("sm_checkpointpity_grace", "45.0", "Seconds to wait for stragglers once at least one survivor reaches the safe room, before leaving them behind");
+    g_hEnabled = CreateConVar("sm_checkpointpity_enabled", "1", "Enable checkpoint pity timer", _, true, 0.0, true, 1.0);
+    g_hGraceTime = CreateConVar("sm_checkpointpity_grace", "45.0", "Seconds stragglers get once enough survivors are in the safe room, before the round is ended without them", _, true, 5.0);
+    g_hStartRatio = CreateConVar("sm_checkpointpity_ratio", "0.5", "Fraction of standing (not incapped/pinned) living survivors that must be in the safe room before the straggler countdown starts", _, true, 0.01, true, 1.0);
+    AutoExecConfig(true, "checkpoint_pity");
 
-    HookEvent("round_start", Event_RoundStart);
+    HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+    HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 }
 
-// DIAGNOSTIC: left4dhooks calls this automatically if/when the engine
-// itself actually attempts to end a versus round. If this never fires
-// even though we've confirmed every survivor is in the checkpoint, that's
-// proof the engine's own completion check isn't triggering at all (as
-// opposed to triggering but being blocked by something like a locked door).
+// DIAGNOSTIC: left4dhooks calls this when the engine itself attempts to end a
+// versus round.
 public Action L4D2_OnEndVersusModeRound(bool countSurvivors)
 {
-    LogMessage("[checkpoint_pity] L4D2_OnEndVersusModeRound FIRED (countSurvivors=%d). The engine IS attempting to end the round.", countSurvivors);
+    LogMessage("[checkpoint_pity] L4D2_OnEndVersusModeRound FIRED (countSurvivors=%d).", countSurvivors);
     return Plugin_Continue;
 }
 
-public void OnMapStart()
+public void OnMapEnd()
 {
-    g_bGraceTimerActive = false;
-    // Timers are auto-killed by SourceMod on map change; just drop our
-    // reference so we don't try to KillTimer a handle that's already gone.
+    // TIMER_FLAG_NO_MAPCHANGE timers are killed by SourceMod at map end.
     g_hCheckTimer = null;
 }
 
-public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
+void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
+    delete g_hCheckTimer;
+
+    g_bRoundOver = false;
     g_bGraceTimerActive = false;
     g_bAllPresentLogged = false;
     g_fAllPresentSince = 0.0;
-    g_bAllPresentForceTried = false;
-    g_fLastDiagnosticLog = 0.0;
-
-    // round_start fires more than once per map in Versus (once per team
-    // side) - kill any timer from the previous round before starting a
-    // fresh one, or they'd stack up and race on the shared state above.
-    if (g_hCheckTimer != null)
-    {
-        KillTimer(g_hCheckTimer);
-        g_hCheckTimer = null;
-    }
 
     if (g_hEnabled.BoolValue)
-        g_hCheckTimer = CreateTimer(2.0, Timer_CheckCheckpointStatus, _, TIMER_REPEAT);
-
-    return Plugin_Continue;
+        g_hCheckTimer = CreateTimer(2.0, Timer_CheckCheckpointStatus, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action Timer_CheckCheckpointStatus(Handle timer)
+void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
-    if (!g_hEnabled.BoolValue)
+    g_bRoundOver = true;
+    delete g_hCheckTimer;
+}
+
+void ForceRoundEnd(const char[] reason)
+{
+    if (g_bRoundOver)
+        return;
+
+    g_bRoundOver = true;
+    LogMessage("[checkpoint_pity] %s - forcing completion via L4D_EndVersusModeRound(true).", reason);
+    L4D_EndVersusModeRound(true);
+}
+
+bool IsDowned(int client)
+{
+    return GetEntProp(client, Prop_Send, "m_isIncapacitated") != 0
+        || GetEntProp(client, Prop_Send, "m_isHangingFromLedge") != 0
+        || L4D_IsPlayerPinned(client);
+}
+
+Action Timer_CheckCheckpointStatus(Handle timer)
+{
+    if (!g_hEnabled.BoolValue || g_bRoundOver)
     {
         g_hCheckTimer = null;
         return Plugin_Stop;
     }
 
     int aliveCount = 0;
+    int standingCount = 0;
     int inCheckpointCount = 0;
 
     for (int i = 1; i <= MaxClients; i++)
     {
-        if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
-        {
-            aliveCount++;
+        if (!IsClientInGame(i) || GetClientTeam(i) != 2 || !IsPlayerAlive(i))
+            continue;
 
-            if (L4D_IsInLastCheckpoint(i))
-                inCheckpointCount++;
-        }
+        aliveCount++;
+        bool inside = L4D_IsInLastCheckpoint(i);
+        if (inside)
+            inCheckpointCount++;
+        if (!IsDowned(i) || inside)
+            standingCount++;
     }
 
-    // Nobody alive, or nobody has arrived yet - nothing to do.
+    // Nobody alive, or the checkpoint emptied again: cancel any countdown so a
+    // later entry starts a fresh, announced one.
     if (aliveCount == 0 || inCheckpointCount == 0)
+    {
+        if (g_bGraceTimerActive)
+        {
+            g_bGraceTimerActive = false;
+            PrintToChatAll("\x04[Checkpoint] \x01Safe Room is empty again - straggler countdown cancelled.");
+        }
+        g_bAllPresentLogged = false;
         return Plugin_Continue;
+    }
 
-    // Everyone still alive is in the checkpoint. Log this explicitly the
-    // moment it happens - this was previously silent, and we've since
-    // confirmed via testing that native completion does NOT reliably fire
-    // on its own in this 8v8/modded setup, so we now force it directly via
-    // L4D_EndVersusModeRound() instead of guessing at door entity states.
+    // Everyone alive is inside. Give the engine a moment to end the round on its
+    // own, then force it once.
     if (inCheckpointCount >= aliveCount)
     {
         g_bGraceTimerActive = false;
@@ -120,40 +140,28 @@ public Action Timer_CheckCheckpointStatus(Handle timer)
         {
             g_bAllPresentLogged = true;
             g_fAllPresentSince = GetGameTime();
-            LogMessage("[checkpoint_pity] All %d living survivor(s) detected in last checkpoint. Waiting %.0fs for native completion before forcing.", aliveCount, ALL_PRESENT_GRACE);
             PrintToChatAll("\x04[Checkpoint] \x01All survivors are in the Safe Room.");
         }
-
-        // Give the engine a short window to complete the round on its own
-        // before we force it - if native completion ever does work in some
-        // situations, we don't want to short-circuit it unnecessarily.
-        else if (!g_bAllPresentForceTried && GetGameTime() - g_fAllPresentSince >= ALL_PRESENT_GRACE)
+        else if (GetGameTime() - g_fAllPresentSince >= ALL_PRESENT_GRACE)
         {
-            g_bAllPresentForceTried = true;
-            LogMessage("[checkpoint_pity] Round still active %.0fs after all survivors arrived - forcing completion via L4D_EndVersusModeRound(true).", ALL_PRESENT_GRACE);
-            L4D_EndVersusModeRound(true);
+            ForceRoundEnd("All living survivors in last checkpoint");
         }
-
-        // Keep logging every 10s in the rare case even the forced call
-        // above doesn't take effect, so we have a continuous trace instead
-        // of going silent.
-        else if (g_bAllPresentForceTried && GetGameTime() - g_fLastDiagnosticLog >= 10.0)
-        {
-            g_fLastDiagnosticLog = GetGameTime();
-            LogMessage("[checkpoint_pity] STILL stuck %.0fs after all survivors arrived, even after forcing L4D_EndVersusModeRound(true). FinaleEscapeInProgress=%d AnySurvivorInCheckpoint=%d",
-                GetGameTime() - g_fAllPresentSince, L4D_IsFinaleEscapeInProgress(), L4D_IsAnySurvivorInCheckpoint());
-        }
-
         return Plugin_Continue;
     }
 
-    // At least one arrived, but not everyone - start (or continue) the
-    // grace period countdown.
+    g_bAllPresentLogged = false;
+
+    // Only start the straggler clock once a real share of the standing team is
+    // inside - one rusher or one bot reaching the door no longer dooms everyone
+    // else mid-fight.
     if (!g_bGraceTimerActive)
     {
+        if (float(inCheckpointCount) < g_hStartRatio.FloatValue * float(standingCount))
+            return Plugin_Continue;
+
         g_bGraceTimerActive = true;
         g_fGraceEndTime = GetGameTime() + g_hGraceTime.FloatValue;
-        PrintToChatAll("\x04[Checkpoint] \x01Survivors have reached the Safe Room. Stragglers have \x03%.0f seconds\x01 to arrive!", g_hGraceTime.FloatValue);
+        PrintToChatAll("\x04[Checkpoint] \x01Most survivors are in the Safe Room. Stragglers have \x03%.0f seconds\x01 to arrive!", g_hGraceTime.FloatValue);
         return Plugin_Continue;
     }
 
@@ -161,20 +169,20 @@ public Action Timer_CheckCheckpointStatus(Handle timer)
     {
         g_bGraceTimerActive = false;
 
+        // Standing stragglers who chose not to come in are left behind.
+        // Incapped, ledge-hanging and pinned survivors are not killed - the
+        // round simply ends without them (they don't count toward the score).
         for (int i = 1; i <= MaxClients; i++)
         {
-            if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i) && !L4D_IsInLastCheckpoint(i))
+            if (IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i)
+                && !L4D_IsInLastCheckpoint(i) && !IsDowned(i))
             {
                 PrintToChatAll("\x04[Checkpoint] \x03%N \x01was left behind!", i);
                 ForcePlayerSuicide(i);
             }
         }
 
-        // Everyone still alive is now in the checkpoint by construction -
-        // force completion now instead of waiting another full tick cycle
-        // to notice it via the branch above.
-        LogMessage("[checkpoint_pity] Stragglers left behind - forcing completion via L4D_EndVersusModeRound(true).");
-        L4D_EndVersusModeRound(true);
+        ForceRoundEnd("Straggler grace period expired");
     }
 
     return Plugin_Continue;

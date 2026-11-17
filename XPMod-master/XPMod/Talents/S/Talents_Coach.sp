@@ -533,9 +533,15 @@ void OnGameFrame_Coach(int iClient)
 		}
 	}
 	// Wrecking Ball Lunge / Chainsaw Massacre Lunge - performed from OnPlayerRunCmd_Coach when attack detected
+	// The lunge target scan walks every entity; held attack used to re-run it
+	// every frame when there was nothing to lunge at. Limit it to 4x/second.
+	if(g_bCoachLungeTriggered[iClient] == true && GetGameTime() < g_fCoachLungeNextScanTime[iClient])
+		g_bCoachLungeTriggered[iClient] = false;
+
 	if(g_bCoachLungeTriggered[iClient] == true)
 	{
 		g_bCoachLungeTriggered[iClient] = false;
+		g_fCoachLungeNextScanTime[iClient] = GetGameTime() + 0.25;
 
 		// Use extended range during Chainsaw Massacre
 		float fLungeRange = g_bCoachChainsawMassacreActive[iClient] ? COACH_CHAINSAW_LUNGE_RANGE : COACH_LUNGE_RANGE;
@@ -693,7 +699,6 @@ void OnGameFrame_Coach(int iClient)
 			}
 		}
 
-		PrintToChat(iClient, "\x03[Lunge Debug] \x05Target: %s | Dist: %.1f", bFoundTarget ? "YES" : "NO", fClosestDist);
 
 		// Teleport to right in front of the closest target (only if not already in melee range)
 		if(bFoundTarget && fClosestDist > COACH_LUNGE_MIN_DISTANCE)
@@ -733,7 +738,6 @@ void OnGameFrame_Coach(int iClient)
 
 			if(bWallBlocked || bDestBlocked)
 			{
-				PrintToChat(iClient, "\x03[Lunge Debug] \x05Blocked by geometry, cannot lunge");
 				g_bCoachLungeOnCooldown[iClient] = false;
 			}
 			else
@@ -753,7 +757,6 @@ void OnGameFrame_Coach(int iClient)
 
 				TeleportEntity(iClient, xyzTeleportPos, vAimAngles, vZeroVelocity);
 
-				PrintToChat(iClient, "\x03[Lunge Debug] \x04LUNGED! Dist: %.1f", fClosestDist);
 			}
 
 			g_bCoachLungeOnCooldown[iClient] = true;
@@ -1003,7 +1006,9 @@ void EventsHurt_AttackerCoach(Handle hEvent, int attacker, int victim)
 				SetPlayerHealth(victim, attacker, hp - (g_iMeleeDamageCounter[attacker] + g_iCoachRageMeleeDamage[attacker]));
 			}
 			
-			if(g_bCoachRageIsActive[attacker] == true)
+			// Rage bonus on its own, only when neither branch above already
+			// included it (it was being applied twice per hit during Rage).
+			else if(g_bCoachRageIsActive[attacker] == true)
 			{
 				int hp = GetPlayerHealth(victim);
 				SetPlayerHealth(victim, attacker, hp - g_iCoachRageMeleeDamage[attacker]);

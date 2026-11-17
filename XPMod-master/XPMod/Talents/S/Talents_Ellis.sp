@@ -631,8 +631,6 @@ void EventsItemPickUp_Ellis(int iClient, const char[] strWeaponClass)
 		g_bGrenadeItemJustGivenByCheats[iClient] = false;
 	}
 
-	int iOffset_Ammo = FindDataMapInfo(iClient,"m_iAmmo");
-
 	if(g_iMetalLevel[iClient]>0 || g_iFireLevel[iClient]>0)
 	{
 		if (StrContains(strWeaponClass,"rifle",false) != -1 || StrContains(strWeaponClass,"smg",false) != -1 || StrContains(strWeaponClass,"sub",false) != -1 || StrContains(strWeaponClass,"sniper",false) != -1)
@@ -644,15 +642,26 @@ void EventsItemPickUp_Ellis(int iClient, const char[] strWeaponClass)
 				return;
 			int clip = GetEntProp(iEntid,Prop_Data,"m_iClip1");
 			g_iClientPrimaryClipSize[iClient] = clip;
-			SetEntData(iEntid, g_iOffset_Clip1, clip + (g_iFireLevel[iClient] * 10), true);
-			clip = GetEntData(iClient, iOffset_Ammo + 12);	//for rifle (+12)
-			SetEntData(iClient, iOffset_Ammo + 12, clip - (g_iFireLevel[iClient] * 10));
-			clip = GetEntData(iClient, iOffset_Ammo + 20);	//for smg (+20)
-			SetEntData(iClient, iOffset_Ammo + 20, clip - (g_iFireLevel[iClient] * 10));
-			clip = GetEntData(iClient, iOffset_Ammo + 32);	//for huntingrifle (+32)
-			SetEntData(iClient, iOffset_Ammo + 32, clip - (g_iFireLevel[iClient] * 10));
-			clip = GetEntData(iClient, iOffset_Ammo + 36);	//for huntingrifle2? (+36)
-			SetEntData(iClient, iOffset_Ammo + 36, clip - (g_iFireLevel[iClient] * 10));
+
+			// Bonus clip ammo is moved out of THIS weapon's own reserve (never
+			// created from nothing, never taken from other ammo types), and
+			// only once per weapon - re-picking the same gun used to stack +50
+			// each time and drive four reserve types negative.
+			int iRef = EntIndexToEntRef(iEntid);
+			int iAmmoType = GetEntProp(iEntid, Prop_Send, "m_iPrimaryAmmoType");
+			if (g_iEllisClipBonusWeaponRef[iEntid] != iRef && iAmmoType >= 0)
+			{
+				int iReserve = GetEntProp(iClient, Prop_Send, "m_iAmmo", _, iAmmoType);
+				int iBonus = g_iFireLevel[iClient] * 10;
+				if (iBonus > iReserve)
+					iBonus = iReserve;
+				if (iBonus > 0)
+				{
+					SetEntData(iEntid, g_iOffset_Clip1, clip + iBonus, true);
+					SetEntProp(iClient, Prop_Send, "m_iAmmo", iReserve - iBonus, _, iAmmoType);
+				}
+				g_iEllisClipBonusWeaponRef[iEntid] = iRef;
+			}
 		}
 	}
 }

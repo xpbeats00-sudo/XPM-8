@@ -27,8 +27,8 @@ bool SwitchPlayerToSurvivors(int iClient, int iTarget)
 
     if(!IsTeamFull(TEAM_SURVIVORS))
     {
-        // First we switch to spectators
-        ChangeClientTeam(iClient, TEAM_SPECTATORS); 
+        // First we switch the TARGET to spectators (was iClient - the admin)
+        ChangeClientTeam(iTarget, TEAM_SPECTATORS);
 
         // Look for a survivor bot then take them over
         for (int i=1; i <= MaxClients; i++)

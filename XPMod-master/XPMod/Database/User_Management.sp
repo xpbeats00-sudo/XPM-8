@@ -466,7 +466,10 @@ void SQLSaveUserDataInDatabaseCallback(Handle owner, Handle hQuery, const char[]
 
 }
 
-void SaveUserDataInDatabase(int iClient)
+// bOnDisconnect: the UPDATE is sent directly (the client is about to be wiped, so
+// the async check-then-save round trip would find nobody to save). The xp column
+// keeps a pending website push instead of overwriting it.
+void SaveUserDataInDatabase(int iClient, bool bOnDisconnect = false)
 {
 	if(iClient == 0)
 		iClient = 1;
@@ -542,7 +545,12 @@ void SaveUserDataInDatabase(int iClient)
 
 	// XP
 	// Only save new xp if its enabled or the player is below 2x the Max Level XP Amount
-	if (XPSaveForHighLevelsEnabled || g_iClientXP[iClient] < LEVEL_30 * 2)
+	if ((XPSaveForHighLevelsEnabled || g_iClientXP[iClient] < LEVEL_30 * 2) && bOnDisconnect)
+	{
+		Format(strQueryPart, sizeof(strQueryPart), "xp = IF(push_update_from_db = 1, xp, %s), ", strClientXP);
+		StrCat(strQuery, sizeof(strQuery), strQueryPart);
+	}
+	else if (XPSaveForHighLevelsEnabled || g_iClientXP[iClient] < LEVEL_30 * 2)
 	{
 		Format(strQueryPart, sizeof(strQueryPart), "\
 		xp = %s, ",

@@ -14,12 +14,14 @@
 // to fit a 2-line banner into it. They're also restricted to actual admins (see
 // CUSTOM_TAG_ADMIN_ONLY below) so a regular player can't tag themselves as staff.
 char CUSTOM_TAGS[][] = {
-	"👑",
-	"🎮",
-	"🎰",
-	"🎲",
-	"🎯",
-	"💀",
+	// Only symbols at or below U+FFFF: the original emoji here were all above that and
+	// showed in-game as two tofu boxes each. Tag IDs/order are unchanged.
+	"♚",
+	"♞",
+	"♣",
+	"♦",
+	"✪",
+	"♠",
 	"OWNER",
 	"ADMIN"
 };
@@ -27,12 +29,12 @@ char CUSTOM_TAGS[][] = {
 // Parallel array - true means only players with SourceMod admin access can select/see
 // this tag in the Customize menu. Keep this the same length/order as CUSTOM_TAGS above.
 bool CUSTOM_TAG_ADMIN_ONLY[] = {
-	false,	// 👑
-	false,	// 🎮
-	false,	// 🎰
-	false,	// 🎲
-	false,	// 🎯
-	false,	// 💀
+	false,	// ♚
+	false,	// ♞
+	false,	// ♣
+	false,	// ♦
+	false,	// ✪
+	false,	// ♠
 	true,	// OWNER
 	true	// ADMIN
 };

@@ -18,16 +18,20 @@
 // the Customize menu's emoji tags applies here too: standard Unicode, not guaranteed to
 // have a glyph in L4D2's own HUD font - please test live.
 char PRESTIGE_ICONS[][] = {
-	"P1⭐",	// rank 1
-	"P2🌟",	// rank 2
-	"P3✨",	// rank 3
-	"P4🔥",	// rank 4
-	"P5⚡",	// rank 5
-	"P6💥",	// rank 6
-	"P7💎",	// rank 7
-	"P8🏆",	// rank 8
-	"P9💀",	// rank 9
-	"P10👑",	// rank 10
+	// NOTE: only Basic Multilingual Plane symbols here (U+0000-U+FFFF). The game client
+	// draws names one UTF-16 unit at a time, so any emoji above U+FFFF (most of them,
+	// e.g. U+1F451 crown) is split into a surrogate pair and shows as TWO tofu boxes.
+	// These are the same star/chess symbols upstream XPMod already uses in names.
+	"P1☆",	// rank 1
+	"P2★",	// rank 2
+	"P3✪",	// rank 3
+	"P4♞",	// rank 4
+	"P5♝",	// rank 5
+	"P6♜",	// rank 6
+	"P7♛",	// rank 7
+	"P8♚",	// rank 8
+	"P9★♚",	// rank 9
+	"P10♚♚",	// rank 10
 	"",	// rank 11 - U+E0F0
 	"",	// rank 12 - U+E100
 	"",	// rank 13 - U+E110
@@ -82,4 +86,6 @@ void GetPrestigeSymbol(int iPrestigeCount, char[] strSymbol, int maxlen)
 
 // Decorator shown for players who haven't prestiged yet (prestige count 0, "new" tier),
 // prepended to their level instead of a prestige count - see RenamePlayerWithLevelTags.
-char NEW_PLAYER_SYMBOL[] = "🔰";
+// Left empty so a new player's tag is just "[<level>]". The previous value was U+1F530,
+// which is above U+FFFF and showed in-game as two tofu boxes ("[□□0] Name").
+char NEW_PLAYER_SYMBOL[] = "";

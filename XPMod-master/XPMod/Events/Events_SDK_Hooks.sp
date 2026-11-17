@@ -159,9 +159,13 @@ public Action OnTakeDamage(int iVictim, int &iAttacker, int &iInflictor, float &
 //+1073741826 CI gun headshot Pistol_Magnum
 //-1071644668 CI melee headshot
 
+// Removes OnTakeDamage from leftover NON-player entities (enhanced CI, smoker
+// clones, ...). Player slots are skipped: clients are hooked once in
+// OnClientPutInServer and must stay hooked across rounds - this used to strip
+// them every round_start, silently disabling every OnTakeDamage talent.
 void UnhookAllOnTakeDamage()
 {
-	for (int i=0; i <= MAXENTITIES; i++)
+	for (int i=MaxClients + 1; i <= MAXENTITIES; i++)
 	{
 		if (IsValidEntity(i) == false)
 			continue;

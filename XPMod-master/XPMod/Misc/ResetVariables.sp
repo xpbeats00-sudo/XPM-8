@@ -6,6 +6,12 @@ void ResetAllVariablesForRound()
 
 	g_bVersusRoundEndForced = false;
 
+	// Map-wide resets: done ONCE here, not once per client slot (they used to
+	// run 32x per round_start inside ResetClientVariablesForRound - ~65k
+	// entity calls in one frame).
+	ResetAllEntityVariablesForRound();
+	UnhookAllOnTakeDamage();
+
 	//Reset Variables
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -83,7 +89,6 @@ void ResetAllVariablesForRound()
 
 void ResetClientVariablesForRound(int iClient)
 {
-	ResetAllEntityVariablesForRound();
 	ResetTalentConfirmCountdown(iClient);
 	g_iFastAttackingCurrentWeaponID[iClient] = -1;
 	g_iFastAttackingCurrentItemIndex[iClient] = ITEM_EMPTY;
@@ -241,10 +246,6 @@ void ResetClientVariablesForRound(int iClient)
 	g_xyzBotXPMGoalLocation[iClient][0] = EMPTY_VECTOR[0];
 	g_xyzBotXPMGoalLocation[iClient][1] = EMPTY_VECTOR[1];
 	g_xyzBotXPMGoalLocation[iClient][2] = EMPTY_VECTOR[2];
-
-	// Unhook all of the OnTakeDamage in case there
-	// were any left over from the last map
-	UnhookAllOnTakeDamage();
 
 	g_iInfectedCharacter[iClient] = UNKNOWN_INFECTED;
 	RemoveAllEntitiesFromArrayList(g_listEnhancedCIEntities);

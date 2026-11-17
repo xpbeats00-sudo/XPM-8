@@ -644,7 +644,13 @@ public Action ADTimer(Handle timer) {
 
     g_MaxMates = CountTeamMates(2);
 
-    if (g_MaxMates == 0) {
+    // Bail out early when there's truly nothing to do - EXCEPT while g_ADFreeze is set,
+    // since that's this function's own signal that it needs to top the team back up to
+    // g_MinPlayers (see the g_ADFreeze block below). The old unconditional "0 survivors ->
+    // do nothing" check meant that once the survivor team ever hit exactly zero (e.g. a
+    // full wipe with no one left to respawn as), this function would refuse to add any
+    // bots to recover - a permanent deadlock, since nothing else calls AddSurvivor().
+    if (g_MaxMates == 0 && !g_ADFreeze) {
         return Plugin_Continue;
     }
 
@@ -2181,8 +2187,6 @@ public Action TakeoverTimer(Handle timer, any client) {
 }
 
 int CountTeamMates(int onteam, int mtype=2) {
-    Echo(2, "CountTeamMates: %d %d", onteam, mtype);
-
     // mtype 0: counts only bots
     // mtype 1: counts only humans
     // mtype 2: counts all players on team
@@ -3003,6 +3007,34 @@ public Action SwitchTeamCmd(int client, int args) {
     return Plugin_Handled;
 }
 
+bool CanNonAdminJoinVersusTeam(int client, int target, int team) {
+    if (target != client) {
+        return false;
+    }
+
+    // Going to spectator is always allowed.
+    if (team == 1) {
+        return true;
+    }
+
+    if (team != 2 && team != 3) {
+        return false;
+    }
+
+    if (GetClientTeam(client) > 1) {
+        PrintToChat(client, "\x04[ABM] \x01Go to spectator first to change teams.");
+        return false;
+    }
+
+    int other = (team == 2) ? 3 : 2;
+    if (CountTeamMates(team, 1) > CountTeamMates(other, 1)) {
+        PrintToChat(client, "\x04[ABM] \x01That team already has more players. Join the other team.");
+        return false;
+    }
+
+    return true;
+}
+
 public void SwitchTeamHandler(int client, int level, char model[32]) {
     Echo(2, "SwitchTeamHandler: %d %d %s", client, level, model);
 
@@ -3021,6 +3053,14 @@ public void SwitchTeamHandler(int client, int level, char model[32]) {
         case 2: {
             if (CanClientTarget(client, menuArg0)) {
                 if (!g_IsVs && !IsAdmin(client) && menuArg1 == 3) {
+                    GenericMenuCleaner(client);
+                    return;
+                }
+
+                // Versus: non-admins may only move themselves out of spectator,
+                // and only onto a team that doesn't already have more humans than
+                // the other one. Stops free team-hopping and team stacking.
+                if (g_IsVs && !IsAdmin(client) && !CanNonAdminJoinVersusTeam(client, menuArg0, menuArg1)) {
                     GenericMenuCleaner(client);
                     return;
                 }
@@ -3145,6 +3185,14 @@ public void SwitchToBotHandler(int client, int level) {
         }
 
         case 2: {
+            // Versus: bot takeover is admin-only. Otherwise any player can hop
+            // into a full-health bot, skip death, switch teams, or take the AI Tank.
+            if (g_IsVs && !IsAdmin(client)) {
+                PrintToChat(client, "\x04[ABM] \x01Bot takeover is admin-only in Versus.");
+                GenericMenuCleaner(client);
+                return;
+            }
+
             if (CanClientTarget(client, menuArg0)) {
                 if (IsClientValid(menuArg1)) {
                     if (homeTeam != 3 && GetClientTeam(menuArg1) == 3) {

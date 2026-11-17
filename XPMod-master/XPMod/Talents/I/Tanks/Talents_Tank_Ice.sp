@@ -604,9 +604,6 @@ void CheckForPlayersInIceTanksColdAuraSlowRange(int iTank)
 		g_bIceTankSlideInCooldown[iTank] == true)
 		return;
 
-	float xyzTankPosition[3];
-	GetClientEyePosition(iTank, xyzTankPosition);
-
 	for (int iClient = 1; iClient <= MaxClients; iClient++)
 	{
 		if(RunClientChecks(iClient) == false ||
@@ -614,18 +611,16 @@ void CheckForPlayersInIceTanksColdAuraSlowRange(int iTank)
 			g_iClientTeam[iClient] != TEAM_SURVIVORS)
 			continue;
 
-		// Get the survivor player location
-		float xyzSurvivorPosition[3];
-		GetClientEyePosition(iClient, xyzSurvivorPosition);
-		// Check if player is within the radius to slow
-		// Get the distance
-		float fDistance = GetVectorDistance(xyzSurvivorPosition, xyzTankPosition, false);		
-		//Freeze if they are close enough
-		if (fDistance < TANK_ICE_COLD_SLOW_AURA_RADIUS)
+		// Use the strongest slow from ANY Ice Tank, not just this one. This runs
+		// once per Ice Tank per frame; judging range against only iTank made a
+		// second Ice Tank's pass treat the survivor as "out of range", stopping
+		// and re-creating the aura smokestack every frame (one leaked entity per
+		// survivor per tick) and flickering their speed.
+		float fSpeedReductionCalc;
+		GetCurrentIceTankColdAuraSlowSpeedReduction(iClient, fSpeedReductionCalc);
+		if (fSpeedReductionCalc > 0.0)
 		{
-			// Get the normalized distance and set their speed to be reduced that factor
-			float fSpeedReductionCalc = (1.0 - (fDistance / TANK_ICE_COLD_SLOW_AURA_RADIUS)) * TANK_ICE_COLD_SLOW_AURA_SPEED_REDUCE_AMOUNT;
-			
+
 			// Only set a new value if the delta is beyond a threshold
 			if (FloatAbs(fSpeedReductionCalc - g_fIceTankColdAuraSlowSpeedReduction[iClient]) > 0.01)
 			{
@@ -633,8 +628,9 @@ void CheckForPlayersInIceTanksColdAuraSlowRange(int iTank)
 				SetClientSpeed(iClient);
 			}
 
+			// Braces were missing here: only the delete was conditional, so a new
+			// repeating timer was created (and the old one orphaned) every frame.
 			if (g_bIceTankColdAuraDisabled[iClient] == false && g_hTimer_IceTankColdSlowAuraEffectUpdate[iClient] == null)
-				delete g_hTimer_IceTankColdSlowAuraEffectUpdate[iClient];
 				g_hTimer_IceTankColdSlowAuraEffectUpdate[iClient] = CreateTimer(TANK_ICE_COLD_SLOW_AURA_EFFECT_UPDATE_INTERVAL, Timer_UpdateIceTankColdSlowAuraVictimEffect, iClient, TIMER_REPEAT);
 
 			if (g_bIceTankColdAuraDisabled[iClient] == false)

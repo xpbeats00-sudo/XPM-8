@@ -49,8 +49,8 @@ void RemoveAllEntitiesFromArrayList(ArrayList list)
 	if (list == INVALID_HANDLE)
 		return;
 
-	for (int i=0; i < list.Length; i++)
-		list.Erase(i);
+	// Erasing at i while incrementing i only removed every other entry.
+	list.Clear();
 }
 
 void HandleTankRockDestroy(int iRockEntity)

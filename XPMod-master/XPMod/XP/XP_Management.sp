@@ -219,6 +219,16 @@ void GiveClientMaxXPForTesting(int iClient)
 	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
 		return;
 
+	// Same gate as givexp/giveidxp: dev mode on AND RCON-level admin. Without it
+	// any generic admin could max (and then repeatedly prestige) their saved account.
+	if (IsDevModeAllowedForCommand(iClient) == false)
+		return;
+	if (CheckCommandAccess(iClient, "givexp", ADMFLAG_RCON) == false)
+	{
+		PrintToChat(iClient, "\x03[XPM] \x01You need RCON admin access for this.");
+		return;
+	}
+
 	g_iClientXP[iClient] = RoundToFloor(LEVEL_30 * XP_MULTIPLIER);
 	LevelUpPlayer(iClient);
 	CheckLevel(iClient);
@@ -419,6 +429,17 @@ Action ResetSurvivorTalents(int iClient)
 	g_bConfirmedSurvivorTalentsGivenThisRound[iClient] = false;
 	ResetSurvivorClassTalentsRuntimeState(iClient);
 
+	ResetSurvivorTalentLevels(iClient);
+	return Plugin_Handled;
+}
+
+// Zeroes the talent levels and refunds the skill points, WITHOUT touching the
+// talents-confirmed flags or per-round runtime state (bind charges, Louis's
+// wallet, etc). Used for mid-round level-ups so a confirmed player isn't
+// unconfirmed - that used to block binds, re-open character switching, and
+// hand out fresh bind charges / XMR on re-confirm every level-up.
+void ResetSurvivorTalentLevels(int iClient)
+{
 	//Reset all levels///////////////////////////////////////////////////////////////////////////////
 	
 	//Bill
@@ -480,8 +501,6 @@ Action ResetSurvivorTalents(int iClient)
 
 	g_iSkillPoints[iClient] = g_iClientLevel[iClient];
 	g_iInfectedLevel[iClient] = RoundToFloor(g_iClientLevel[iClient] * 0.5);
-	
-	return Plugin_Handled;
 }
 
 void LevelUpPlayer(int iClient)
@@ -540,8 +559,16 @@ void AutoLevelUpSurivovor(int iClient)
 
 void AutoLevelUpSurvivorTalents(int iClient, int[] talent1, int[] talent2, int[] talent3, int[] talent4, int[] talent5, int[] talent6)
 {
-	
-	ResetSurvivorTalents(iClient);
+	// A confirmed player levelling up mid-round keeps their confirmation and
+	// round state; only the talent levels are redistributed.
+	if (g_bTalentsConfirmed[iClient])
+	{
+		if (IsClientInGame(iClient) == false)
+			return;
+		ResetSurvivorTalentLevels(iClient);
+	}
+	else
+		ResetSurvivorTalents(iClient);
 
 	if(g_iSkillPoints[iClient] > 0)
 	{

@@ -68,6 +68,7 @@ int g_iSlapRunTimes[MAXPLAYERS + 1];//for the slap timer for each iClient	//Reme
 float g_fMaxLaserAccuracy = 0.4;	        //max accuracy increase for survivors
 int g_iPrimarySlotID[MAXPLAYERS + 1];
 int g_iClientPrimaryClipSize[MAXPLAYERS + 1];//g_iOffset_Clip1 for the clients primary weapon before addition of talents
+int g_iEllisClipBonusWeaponRef[MAXENTITIES + 1];	// entity ref of a weapon that already got Ellis's pickup clip bonus
 bool g_bAdhesiveGooActive[MAXPLAYERS + 1];
 // Victim Health Meter
 #define VICTIM_HEALTH_METER_DISPLAY_TIME        3.0
@@ -227,6 +228,7 @@ int g_iCoachSIHeadshotCounter[MAXPLAYERS + 1];
 #define COACH_LUNGE_MIN_DISTANCE           80.0    // Don't teleport if already this close
 #define COACH_LUNGE_COOLDOWN_DURATION      1.0     // Seconds between lunges
 bool g_bCoachLungeOnCooldown[MAXPLAYERS + 1];
+float g_fCoachLungeNextScanTime[MAXPLAYERS + 1];
 bool g_bCoachLungeTriggered[MAXPLAYERS + 1];
 bool g_bCoachLungeEnabled[MAXPLAYERS + 1] = {true, ...};
 bool g_bCoachLungeToggleCooldown[MAXPLAYERS + 1];

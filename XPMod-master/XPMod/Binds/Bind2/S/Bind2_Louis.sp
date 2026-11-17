@@ -1,5 +1,11 @@
 void Bind2Press_Louis(int iClient)
 {
+	if (g_iLouisTalent6Level[iClient] <= 0)
+	{
+		PrintHintText(iClient, "You posses no talent for Bind 2");
+		return;
+	}
+
     if(g_fLouisXMRWallet[iClient] >= 0.1)
 		ScriptKiddieExploitsMenuDraw(iClient);
 	else

@@ -3,6 +3,12 @@ void Bind1Press_Louis(int iClient)
 	if (RunClientChecks(iClient) == false || IsFakeClient(iClient) == true)
 		return;
 
+	if (g_iLouisTalent5Level[iClient] <= 0)
+	{
+		PrintHintText(iClient, "You posses no talent for Bind 1");
+		return;
+	}
+
 	if (g_iClientBindUses_1[iClient] >= 1)
 	{
 		PrintHintText(iClient, "You are out of Warez Stations.");

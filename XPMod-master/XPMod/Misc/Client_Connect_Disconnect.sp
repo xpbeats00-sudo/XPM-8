@@ -150,7 +150,9 @@ void HandleClientDisconnect(int iClient)
 	}
 
 	SaveRoundStats(iClient);
-	SaveUserData(iClient);
+	// Save directly: SaveUserData's check-then-save is async and its callback
+	// ran after the reset below, so everything since the last save was lost.
+	SaveUserDataInDatabase(iClient, true);
 
 	StorePlayerBindUses(iClient);
 	StorePlayerInDisconnectedPlayerList(iClient);
